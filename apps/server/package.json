@@ -1,0 +1,27 @@
+{
+  "name": "@arcade/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Socket.io runtime host for All Hands Arcade.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arcade/core": "*",
+    "@arcade/hivemind": "*",
+    "@arcade/outlier": "*",
+    "@arcade/trivia": "*",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

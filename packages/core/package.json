@@ -1,0 +1,20 @@
+{
+  "name": "@arcade/core",
+  "version": "0.1.0",
+  "description": "Isomorphic domain models, event contracts, and shared logic for All Hands Arcade.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
