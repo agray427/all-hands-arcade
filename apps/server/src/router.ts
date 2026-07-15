@@ -6,7 +6,11 @@ import {
   roomState,
   roomWelcome,
   validateClient,
+  type BaseMessage,
   type EngineErrorCode,
+  type GameEndPayload,
+  type GameListPayload,
+  type GameStartPayload,
   type Role,
   type ServerBroadcastEnvelope,
   type TargetAudience,
@@ -30,10 +34,17 @@ export interface Identity {
   role: Role;
 }
 
+export type GameAction =
+  | { kind: "game-message"; msg: BaseMessage }
+  | { kind: "list"; msg: BaseMessage<GameListPayload> }
+  | { kind: "start"; msg: BaseMessage<GameStartPayload> }
+  | { kind: "end"; msg: BaseMessage<GameEndPayload> };
+
 export interface HandleResult {
   outbound: Outbound[];
   identity?: Identity;
   leave?: boolean;
+  gameAction?: GameAction;
 }
 
 function fail(
@@ -55,7 +66,7 @@ export function handle(
 ): HandleResult {
   if (!isEnvelopeShape(raw)) return fail("MALFORMED_MESSAGE", "invalid envelope");
   if (raw.gameId) {
-    return fail("NO_SUCH_GAME", `no game registered: ${raw.gameId}`, raw.messageId);
+    return { outbound: [], gameAction: { kind: "game-message", msg: raw } };
   }
 
   const parsed = validateClient(raw);
@@ -116,6 +127,12 @@ export function handle(
           : [],
       };
     }
+    case "game:list":
+      return { outbound: [], gameAction: { kind: "list", msg } };
+    case "game:start":
+      return { outbound: [], gameAction: { kind: "start", msg } };
+    case "game:end":
+      return { outbound: [], gameAction: { kind: "end", msg } };
     default:
       return assertNever(msg);
   }

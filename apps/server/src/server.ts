@@ -1,8 +1,17 @@
 import { createServer } from "node:http";
 import { Server } from "socket.io";
-import { roomState, type Role, type ServerBroadcastEnvelope } from "@arcade/core";
+import {
+  roomState,
+  type AnyGameDefinition,
+  type Participant,
+  type Role,
+  type ServerBroadcastEnvelope,
+  type TargetAudience,
+} from "@arcade/core";
+import { trivia } from "@arcade/trivia";
+import { GameCoordinator } from "./games.js";
 import { RoomStore } from "./rooms.js";
-import { handle, type Outbound } from "./router.js";
+import { handle, type GameAction, type Outbound } from "./router.js";
 
 interface ClientToServerEvents {
   "message:incoming": (raw: unknown) => void;
@@ -32,14 +41,18 @@ export type ArcadeIoServer = Server<
 export interface ArcadeServerOptions {
   port: number;
   clientOrigin: string;
+  games?: AnyGameDefinition[];
 }
 
 export interface ArcadeServer {
   io: ArcadeIoServer;
   store: RoomStore;
+  games: GameCoordinator;
   port: number;
   close(): Promise<void>;
 }
+
+export const defaultGames: AnyGameDefinition[] = [trivia];
 
 function roleRoom(code: string, role: Role): string {
   return `${code}:${role}s`;
@@ -54,6 +67,34 @@ export async function createArcadeServer(
     cors: { origin: options.clientOrigin },
   });
 
+  const broadcast = (
+    code: string,
+    target: TargetAudience,
+    message: ServerBroadcastEnvelope,
+  ) => {
+    switch (target) {
+      case "all":
+        io.to(code).emit("message:outgoing", message);
+        return;
+      case "host":
+        io.to(`${code}:hosts`).emit("message:outgoing", message);
+        return;
+      case "players":
+        io.to(`${code}:players`).emit("message:outgoing", message);
+        return;
+      default:
+        io.to(target).emit("message:outgoing", message);
+    }
+  };
+
+  const games = new GameCoordinator(options.games ?? defaultGames, broadcast);
+
+  const playersOf = (code: string): Participant[] => {
+    const view = store.get(code);
+    if (!view) return [];
+    return Object.values(view.participants).filter((p) => p.role === "player");
+  };
+
   io.on("connection", (socket) => {
     socket.data.participantId = null;
     socket.data.roomCode = null;
@@ -61,21 +102,30 @@ export async function createArcadeServer(
 
     const emit = (out: Outbound) => {
       const code = socket.data.roomCode;
-      switch (out.target) {
-        case "self":
-          socket.emit("message:outgoing", out.message);
-          return;
-        case "all":
-          if (code) io.to(code).emit("message:outgoing", out.message);
-          return;
-        case "host":
-          if (code) io.to(`${code}:hosts`).emit("message:outgoing", out.message);
-          return;
-        case "players":
-          if (code) io.to(`${code}:players`).emit("message:outgoing", out.message);
-          return;
-        default:
-          io.to(out.target).emit("message:outgoing", out.message);
+      if (out.target === "self") {
+        socket.emit("message:outgoing", out.message);
+        return;
+      }
+      if (code || (out.target !== "all" && out.target !== "host" && out.target !== "players")) {
+        broadcast(code ?? "", out.target, out.message);
+      }
+    };
+
+    const runGameAction = (action: GameAction): ServerBroadcastEnvelope[] => {
+      switch (action.kind) {
+        case "list":
+          return games.list(action.msg.messageId);
+        case "start":
+          return games.start(
+            socket.data,
+            action.msg.payload,
+            socket.data.roomCode ? playersOf(socket.data.roomCode) : [],
+            action.msg.messageId,
+          );
+        case "end":
+          return games.end(socket.data, action.msg.messageId);
+        case "game-message":
+          return games.message(socket.data, action.msg);
       }
     };
 
@@ -93,12 +143,21 @@ export async function createArcadeServer(
 
       for (const out of result.outbound) emit(out);
 
+      if (result.gameAction) {
+        for (const message of runGameAction(result.gameAction)) {
+          socket.emit("message:outgoing", message);
+        }
+      }
+
       if (result.leave && socket.data.roomCode) {
-        socket.leave(socket.data.roomCode);
-        if (socket.data.role) socket.leave(roleRoom(socket.data.roomCode, socket.data.role));
+        const code = socket.data.roomCode;
+        socket.leave(code);
+        if (socket.data.role) socket.leave(roleRoom(code, socket.data.role));
         socket.data.participantId = null;
         socket.data.roomCode = null;
         socket.data.role = null;
+        const view = store.get(code);
+        if (!view || Object.keys(view.participants).length === 0) games.dispose(code);
       }
     });
 
@@ -118,6 +177,7 @@ export async function createArcadeServer(
   return {
     io,
     store,
+    games,
     port,
     close: () =>
       new Promise<void>((resolve, reject) => {

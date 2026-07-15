@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envelope, roomCreate, roomJoin, roomLeave } from "@arcade/core";
+import { envelope, gameEnd, gameList, gameStart, roomCreate, roomJoin, roomLeave } from "@arcade/core";
 import type { EngineErrorPayload, ServerBroadcastEnvelope } from "@arcade/core";
 import { RoomStore } from "../src/rooms.js";
 import { handle, type ConnectionContext } from "../src/router.js";
@@ -104,6 +104,36 @@ describe("handle room:leave", () => {
   });
 });
 
+describe("handle game routing", () => {
+  it("routes gameId envelopes to a game-message action without touching rooms", () => {
+    const store = new RoomStore();
+    const msg = envelope("answer:submit", { choice: 1 }, { gameId: "trivia" });
+    const result = handle(store, emptyCtx(), msg);
+    expect(result.outbound).toEqual([]);
+    expect(result.gameAction).toEqual({ kind: "game-message", msg });
+  });
+
+  it("routes engine game messages to typed actions", () => {
+    const store = new RoomStore();
+    const list = gameList();
+    expect(handle(store, emptyCtx(), list).gameAction).toEqual({ kind: "list", msg: list });
+
+    const start = gameStart({ gameId: "trivia", variantId: "survival" });
+    expect(handle(store, emptyCtx(), start).gameAction).toEqual({ kind: "start", msg: start });
+
+    const end = gameEnd();
+    expect(handle(store, emptyCtx(), end).gameAction).toEqual({ kind: "end", msg: end });
+  });
+
+  it("still validates game:start payloads", () => {
+    const store = new RoomStore();
+    const msg = { ...gameStart({ gameId: "trivia" }), payload: { gameId: 7 } };
+    const result = handle(store, emptyCtx(), msg);
+    expect(result.gameAction).toBeUndefined();
+    expect(errorPayload(result.outbound[0]!.message).code).toBe("MALFORMED_MESSAGE");
+  });
+});
+
 describe("handle errors", () => {
   it("rejects a malformed envelope", () => {
     const store = new RoomStore();
@@ -118,16 +148,6 @@ describe("handle errors", () => {
     const payload = errorPayload(result.outbound[0]!.message);
     expect(payload.code).toBe("MALFORMED_MESSAGE");
     expect(payload.message).toContain("hostName");
-    expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
-  });
-
-  it("rejects unknown game messages with NO_SUCH_GAME", () => {
-    const store = new RoomStore();
-    const msg = envelope("guess:submit", { value: 1 }, { gameId: "trivia" });
-    const result = handle(store, emptyCtx(), msg);
-    const payload = errorPayload(result.outbound[0]!.message);
-    expect(payload.code).toBe("NO_SUCH_GAME");
-    expect(payload.message).toContain("trivia");
     expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
   });
 

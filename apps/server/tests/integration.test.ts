@@ -1,15 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { io as connectClient, type Socket } from "socket.io-client";
 import {
+  envelope,
+  gameList,
+  gameStart,
   roomCreate,
   roomJoin,
   roomLeave,
   type EngineErrorPayload,
+  type GameCatalog,
+  type GameResults,
   type RoomPlayerJoinedPayload,
   type RoomStatePayload,
   type RoomWelcomePayload,
   type ServerBroadcastEnvelope,
 } from "@arcade/core";
+import { decks } from "@arcade/trivia";
 import { createArcadeServer, type ArcadeServer } from "../src/server.js";
 
 type Predicate = (message: ServerBroadcastEnvelope) => boolean;
@@ -189,5 +195,174 @@ describe("arcade server integration", () => {
     expect(error.replyTo).toBe(msg.messageId);
     const payload = error.payload as EngineErrorPayload;
     expect(payload.code).toBe("ROOM_NOT_FOUND");
+  });
+
+  describe("games", () => {
+    interface GameRoom {
+      host: Inbox;
+      p1: Inbox;
+      p2: Inbox;
+      ids: { p1: string; p2: string };
+    }
+
+    type View = {
+      phase: string;
+      round: number;
+      correctIndex?: number;
+      outcomes?: Record<string, string>;
+      question: { prompt: string; choices: string[] };
+    };
+
+    const viewOf = (m: ServerBroadcastEnvelope): View =>
+      (m.payload as { view: View }).view;
+
+    const stateWith =
+      (predicate: (view: View) => boolean): Predicate =>
+      (m) =>
+        m.type === "game:state" && predicate(viewOf(m));
+
+    function correctFor(view: View): number {
+      for (const deck of decks) {
+        const q = deck.questions.find((question) => question.prompt === view.question.prompt);
+        if (q) return q.correctIndex;
+      }
+      throw new Error(`question not in any deck: ${view.question.prompt}`);
+    }
+
+    function submitAnswer(inbox: Inbox, choice: number): void {
+      inbox.socket.emit(
+        "message:incoming",
+        envelope("answer:submit", { choice }, { gameId: "trivia" }),
+      );
+    }
+
+    async function setupGameRoom(): Promise<GameRoom> {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const p1 = await connect();
+      const w1 = await joinRoom(p1, room.code, "Grace");
+      const p2 = await connect();
+      const w2 = await joinRoom(p2, room.code, "Hedy");
+      return { host, p1, p2, ids: { p1: w1.youId, p2: w2.youId } };
+    }
+
+    it("returns the game catalog on request", async () => {
+      const host = await connect();
+      await createRoom(host);
+      const msg = gameList();
+      host.socket.emit("message:incoming", msg);
+
+      const reply = await host.waitFor((m) => m.replyTo === msg.messageId);
+      expect(reply.type).toBe("game:catalog");
+      const games = (reply.payload as { games: GameCatalog }).games;
+      expect(games).toHaveLength(1);
+      expect(games[0]!.id).toBe("trivia");
+      expect(games[0]!.defaultVariant).toBe("classic");
+      expect(games[0]!.variants.map((v) => v.id).sort()).toEqual(["classic", "survival"]);
+    });
+
+    it("plays a classic game end to end over sockets", async () => {
+      const { host, p1, p2, ids } = await setupGameRoom();
+      const startMsg = gameStart({
+        gameId: "trivia",
+        config: { rounds: 2, questionTimeMs: 30000, revealTimeMs: 500 },
+      });
+      host.socket.emit("message:incoming", startMsg);
+
+      const started = await host.waitFor((m) => m.type === "game:started");
+      expect(started.replyTo).toBe(startMsg.messageId);
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+      expect(q1.question.choices).toHaveLength(4);
+      expect(q1.correctIndex).toBeUndefined();
+
+      const right = correctFor(q1);
+      submitAnswer(p1, right);
+      submitAnswer(p2, (right + 1) % 4);
+
+      const reveal = viewOf(
+        await host.waitFor(stateWith((v) => v.phase === "reveal" && v.round === 1)),
+      );
+      expect(reveal.correctIndex).toBe(right);
+      expect(reveal.outcomes![ids.p1]).toBe("correct");
+      expect(reveal.outcomes![ids.p2]).toBe("wrong");
+
+      const q2 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 2)));
+      const right2 = correctFor(q2);
+      submitAnswer(p1, right2);
+      submitAnswer(p2, right2);
+
+      const ended = await host.waitFor((m) => m.type === "game:ended");
+      const results = (ended.payload as { results: GameResults }).results;
+      expect(results.map((r) => r.participantId)).toEqual([ids.p1, ids.p2]);
+      expect(results[0]!.rank).toBe(1);
+      expect(results[0]!.score).toBeGreaterThan(results[1]!.score);
+    });
+
+    it("eliminates wrong answers in survival and reports how far players got", async () => {
+      const { host, p1, p2, ids } = await setupGameRoom();
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          variantId: "survival",
+          config: { startTimeMs: 30000, revealTimeMs: 500 },
+        }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+      const right = correctFor(q1);
+      submitAnswer(p1, right);
+      submitAnswer(p2, (right + 1) % 4);
+
+      const ended = await host.waitFor((m) => m.type === "game:ended");
+      const results = (ended.payload as { results: GameResults }).results;
+      expect(results[0]!).toMatchObject({ participantId: ids.p1, rank: 1, detail: "Survived" });
+      expect(results[1]!).toMatchObject({
+        participantId: ids.p2,
+        rank: 2,
+        detail: "Eliminated round 1",
+      });
+    });
+
+    it("eliminates silent players when the survival timer expires", async () => {
+      const { host } = await setupGameRoom();
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          variantId: "survival",
+          config: { startTimeMs: 1100, stepMs: 0, minTimeMs: 1000, revealTimeMs: 500 },
+        }),
+      );
+
+      const ended = await host.waitFor((m) => m.type === "game:ended", 5000);
+      const results = (ended.payload as { results: GameResults }).results;
+      expect(results).toHaveLength(2);
+      for (const entry of results) expect(entry.detail).toBe("Eliminated round 1");
+    });
+
+    it("rejects invalid survival config over the wire", async () => {
+      const { host } = await setupGameRoom();
+      const msg = gameStart({
+        gameId: "trivia",
+        variantId: "survival",
+        config: { minTimeMs: 500 },
+      });
+      host.socket.emit("message:incoming", msg);
+
+      const error = await host.waitFor((m) => m.type === "engine:error");
+      expect(error.replyTo).toBe(msg.messageId);
+      const payload = error.payload as EngineErrorPayload;
+      expect(payload.code).toBe("INVALID_CONFIG");
+      expect(payload.message).toContain("minTimeMs");
+    });
+
+    it("rejects game:start from players", async () => {
+      const { p1 } = await setupGameRoom();
+      p1.socket.emit("message:incoming", gameStart({ gameId: "trivia" }));
+      const error = await p1.waitFor((m) => m.type === "engine:error");
+      expect((error.payload as EngineErrorPayload).code).toBe("NOT_ALLOWED");
+    });
   });
 });
