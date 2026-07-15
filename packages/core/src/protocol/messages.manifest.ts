@@ -12,6 +12,7 @@ export const manifest = {
     "room:welcome": { room: "RoomView", youId: "string", resumeToken: "string" },
     "room:state": { room: "RoomView" },
     "room:player_joined": { player: "Participant" },
+    "room:closed": { reason: "string" },
     "engine:error": { code: "EngineErrorCode", message: "string" },
     "game:catalog": { games: "GameCatalog" },
     "game:started": { gameId: "string", variantId: "string", config: "object" },
