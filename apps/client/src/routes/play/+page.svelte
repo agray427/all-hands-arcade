@@ -1,10 +1,32 @@
 <script lang="ts">
   import { ArcadeClient } from "$lib/arcade.svelte";
+  import Countdown from "$lib/components/Countdown.svelte";
+  import Leaderboard from "$lib/components/Leaderboard.svelte";
 
   const arcade = new ArcadeClient();
   let roomCode = $state("");
   let name = $state("");
   let asHost = $state(false);
+
+  const view = $derived(arcade.game?.view ?? null);
+  const youId = $derived(arcade.you?.id ?? "");
+  const isContestant = $derived(!!view && view.contestants.includes(youId));
+  const eliminatedRound = $derived(view ? view.eliminatedAt[youId] : undefined);
+  const hasAnswered = $derived(
+    arcade.myChoice !== null || (!!view && view.answered.includes(youId)),
+  );
+  const outcome = $derived(view?.outcomes?.[youId]);
+  const myPlacement = $derived(
+    arcade.results?.find((entry) => entry.participantId === youId) ?? null,
+  );
+
+  const canAnswer = $derived(
+    !!view &&
+      view.phase === "question" &&
+      isContestant &&
+      eliminatedRound === undefined &&
+      !hasAnswered,
+  );
 
   function join() {
     const code = roomCode.trim().toUpperCase();
@@ -29,10 +51,69 @@
     </label>
     <button type="submit" disabled={!roomCode.trim() || !name.trim()}>Join</button>
   </form>
+{:else if arcade.results}
+  <section class="results">
+    <h2>Final results</h2>
+    {#if myPlacement}
+      <p class="placement">
+        You finished <strong>#{myPlacement.rank}</strong>{myPlacement.detail
+          ? ` — ${myPlacement.detail}`
+          : ""}.
+      </p>
+    {/if}
+    <Leaderboard results={arcade.results} {youId} />
+  </section>
+{:else if view}
+  <section class="game">
+    <div class="meta">
+      <span class="badge">{view.variant}</span>
+      <span>Round {view.round} / {view.totalRounds}</span>
+    </div>
+
+    {#if view.phase === "question"}
+      <Countdown deadline={view.deadline} timeMs={view.timeMs} />
+    {/if}
+
+    <p class="prompt">{view.question.prompt}</p>
+
+    <div class="choices">
+      {#each view.question.choices as choice, i (i)}
+        <button
+          class="choice"
+          class:picked={arcade.myChoice === i}
+          class:correct={view.phase !== "question" && i === view.correctIndex}
+          class:wrong={view.phase !== "question" &&
+            arcade.myChoice === i &&
+            i !== view.correctIndex}
+          disabled={!canAnswer}
+          onclick={() => arcade.submitAnswer(i)}
+        >
+          <span class="letter">{String.fromCharCode(65 + i)}</span>
+          {choice}
+        </button>
+      {/each}
+    </div>
+
+    {#if !isContestant}
+      <p class="status">Game in progress — you're spectating this one.</p>
+    {:else if eliminatedRound !== undefined}
+      <p class="status out">You're out — eliminated in round {eliminatedRound}.</p>
+    {:else if view.phase === "question" && hasAnswered}
+      <p class="status">Answer locked in. Waiting for the reveal…</p>
+    {:else if view.phase === "reveal" && outcome}
+      <p class="status" class:good={outcome === "correct"} class:out={outcome !== "correct"}>
+        {outcome === "correct"
+          ? "Correct!"
+          : outcome === "wrong"
+            ? "Wrong answer."
+            : "Too slow!"}
+      </p>
+    {/if}
+  </section>
 {:else}
   <p class="joined">
     You joined <strong>{arcade.room.code}</strong> as
-    <strong>{arcade.you?.role}</strong>.
+    <strong>{arcade.you?.role}</strong>. Waiting for the host to start a game.
   </p>
 
   <section>
@@ -96,6 +177,76 @@
   }
   .joined {
     margin: 1rem 0 1.5rem;
+  }
+  .game,
+  .results {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #9aa1b1;
+  }
+  .prompt {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0.25rem 0;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    background: #171a23;
+    border: 1px solid #262a36;
+    color: inherit;
+    font-size: 1.05rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .choice:disabled {
+    cursor: default;
+    opacity: 0.85;
+  }
+  .choice.picked {
+    border-color: #3b82f6;
+    background: #101726;
+  }
+  .choice.correct {
+    border-color: #22c55e;
+    background: #10241a;
+    opacity: 1;
+  }
+  .choice.wrong {
+    border-color: #f87171;
+    background: #241014;
+  }
+  .letter {
+    font-weight: 800;
+    color: #9aa1b1;
+  }
+  .status {
+    color: #9aa1b1;
+    margin: 0;
+  }
+  .status.good {
+    color: #22c55e;
+  }
+  .status.out {
+    color: #f87171;
+  }
+  .placement {
+    margin: 0;
   }
   .roster {
     list-style: none;

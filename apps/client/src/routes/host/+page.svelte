@@ -1,8 +1,20 @@
 <script lang="ts">
   import { ArcadeClient } from "$lib/arcade.svelte";
+  import Countdown from "$lib/components/Countdown.svelte";
+  import GamePicker from "$lib/components/GamePicker.svelte";
+  import Leaderboard from "$lib/components/Leaderboard.svelte";
 
   const arcade = new ArcadeClient();
   let hostName = $state("");
+
+  const view = $derived(arcade.game?.view ?? null);
+  const alive = $derived(
+    view ? view.contestants.filter((id) => view.eliminatedAt[id] === undefined) : [],
+  );
+
+  $effect(() => {
+    if (arcade.room && !arcade.catalog) arcade.loadCatalog();
+  });
 
   function create() {
     const name = hostName.trim();
@@ -22,25 +34,75 @@
     <button type="submit" disabled={!hostName.trim()}>Create session</button>
   </form>
 {:else}
-  <section class="code">
+  <section class="code" class:compact={!!view || !!arcade.results}>
     <span class="label">Room code</span>
     <span class="value">{arcade.room.code}</span>
   </section>
 
-  <section>
-    <h2>Roster ({arcade.roster.length})</h2>
-    <ul class="roster">
-      {#each arcade.roster as p (p.id)}
-        <li>
-          <span class="dot" class:on={p.connected}></span>
-          <span class="name">{p.name}</span>
-          <span class="badge">{p.role}</span>
-        </li>
-      {/each}
-    </ul>
-  </section>
+  {#if arcade.results}
+    <section>
+      <h2>Final results</h2>
+      <Leaderboard results={arcade.results} />
+      <button class="primary" onclick={() => arcade.dismissResults()}>Play again</button>
+    </section>
+  {:else if view}
+    <section class="game">
+      <div class="meta">
+        <span class="badge">{view.variant}</span>
+        <span>Round {view.round} / {view.totalRounds}</span>
+        <span class="answered">
+          {view.answered.length} / {alive.length} answered
+        </span>
+      </div>
 
-  <button class="ghost" onclick={() => arcade.leave()}>Leave</button>
+      {#if view.phase === "question"}
+        <Countdown deadline={view.deadline} timeMs={view.timeMs} />
+      {/if}
+
+      <p class="prompt">{view.question.prompt}</p>
+
+      <div class="choices">
+        {#each view.question.choices as choice, i (i)}
+          <div
+            class="choice"
+            class:correct={view.phase !== "question" && i === view.correctIndex}
+            class:dim={view.phase !== "question" && i !== view.correctIndex}
+          >
+            <span class="letter">{String.fromCharCode(65 + i)}</span>
+            {choice}
+          </div>
+        {/each}
+      </div>
+
+      {#if view.variant === "survival"}
+        <p class="survivors">{alive.length} of {view.contestants.length} still standing</p>
+      {/if}
+
+      <button class="ghost" onclick={() => arcade.endGame()}>End game</button>
+    </section>
+  {:else}
+    {#if arcade.catalog}
+      <GamePicker
+        catalog={arcade.catalog}
+        onstart={(gameId, variantId, config) => arcade.startGame(gameId, variantId, config)}
+      />
+    {/if}
+
+    <section>
+      <h2>Roster ({arcade.roster.length})</h2>
+      <ul class="roster">
+        {#each arcade.roster as p (p.id)}
+          <li>
+            <span class="dot" class:on={p.connected}></span>
+            <span class="name">{p.name}</span>
+            <span class="badge">{p.role}</span>
+          </li>
+        {/each}
+      </ul>
+    </section>
+
+    <button class="ghost" onclick={() => arcade.leave()}>Leave</button>
+  {/if}
 {/if}
 
 <style>
@@ -71,6 +133,9 @@
     opacity: 0.5;
     cursor: default;
   }
+  .primary {
+    margin-top: 1rem;
+  }
   .ghost {
     background: transparent;
     border: 1px solid #2b3040;
@@ -83,6 +148,12 @@
     gap: 0.25rem;
     margin: 1rem 0 2rem;
   }
+  .code.compact {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin: 0.5rem 0 1.25rem;
+  }
   .code .label {
     color: #9aa1b1;
     font-size: 0.85rem;
@@ -91,6 +162,63 @@
     font-size: 3rem;
     font-weight: 800;
     letter-spacing: 0.25em;
+  }
+  .code.compact .value {
+    font-size: 1.4rem;
+  }
+  .game {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #9aa1b1;
+  }
+  .answered {
+    margin-left: auto;
+  }
+  .prompt {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+  }
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  @media (max-width: 540px) {
+    .choices {
+      grid-template-columns: 1fr;
+    }
+  }
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 10px;
+    background: #171a23;
+    border: 1px solid #262a36;
+    font-size: 1.15rem;
+  }
+  .choice.correct {
+    border-color: #22c55e;
+    background: #10241a;
+  }
+  .choice.dim {
+    opacity: 0.55;
+  }
+  .letter {
+    font-weight: 800;
+    color: #9aa1b1;
+  }
+  .survivors {
+    color: #9aa1b1;
+    margin: 0;
   }
   .roster {
     list-style: none;
