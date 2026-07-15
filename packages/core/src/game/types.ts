@@ -19,6 +19,8 @@ export interface ConfigField {
   default?: string | number | boolean;
   min?: number;
   options?: ConfigFieldOption[];
+  multiline?: boolean;
+  when?: { field: string; equals: string | number | boolean };
 }
 
 export type GameEvent =

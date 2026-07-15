@@ -22,6 +22,12 @@ const game: GameDefinition<{ ok: true }> = {
             { value: "beta", label: "Beta" },
           ],
         },
+        betaNote: {
+          type: "string",
+          label: "Beta note",
+          multiline: true,
+          when: { field: "deck", equals: "beta" },
+        },
       },
     },
     strict: {
@@ -84,6 +90,24 @@ describe("resolveConfig", () => {
       ok: false,
       code: "INVALID_CONFIG",
       error: "deck must be one of: alpha, beta",
+    });
+  });
+
+  it("ignores conditional fields when their condition is not met", () => {
+    const result = resolveConfig(game, "basic", { deck: "alpha", betaNote: "hi" });
+    expect(result).toEqual({ ok: true, variantId: "basic", config: { deck: "alpha" } });
+  });
+
+  it("validates conditional fields when their condition is met", () => {
+    expect(resolveConfig(game, "basic", { deck: "beta", betaNote: "hi" })).toEqual({
+      ok: true,
+      variantId: "basic",
+      config: { deck: "beta", betaNote: "hi" },
+    });
+    expect(resolveConfig(game, "basic", { deck: "beta", betaNote: 7 })).toMatchObject({
+      ok: false,
+      code: "INVALID_CONFIG",
+      error: "betaNote must be string",
     });
   });
 
