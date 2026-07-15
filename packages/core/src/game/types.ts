@@ -69,6 +69,7 @@ export interface GameDefinition<S = unknown> {
   setup(variantId: string, config: GameConfig, ctx: GameContext): ReduceResult<S>;
   reduce(state: S, event: GameEvent, ctx: GameContext): ReduceResult<S>;
   view(state: S, audience: GameAudience): GameView;
+  playerView?(state: S, participantId: ParticipantId): GameView;
   results(state: S): GameResults;
 }
 
