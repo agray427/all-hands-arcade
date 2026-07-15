@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { roomCreate, roomJoin, roomLeave, validateClient } from "../src/index.js";
+import {
+  gameEnd,
+  gameList,
+  gameStart,
+  roomCreate,
+  roomJoin,
+  roomLeave,
+  validateClient,
+} from "../src/index.js";
 
 describe("validateClient", () => {
   it("accepts every client builder output", () => {
@@ -59,5 +67,29 @@ describe("validateClient", () => {
     const join = roomJoin({ roomCode: "ABCD", name: "Grace" });
     expect("asHost" in join.payload).toBe(false);
     expect(validateClient(join).ok).toBe(true);
+  });
+
+  it("accepts game messages with and without optional config", () => {
+    expect(validateClient(gameList()).ok).toBe(true);
+    expect(validateClient(gameEnd()).ok).toBe(true);
+    expect(validateClient(gameStart({ gameId: "trivia" })).ok).toBe(true);
+    expect(
+      validateClient(
+        gameStart({ gameId: "trivia", variantId: "survival", config: { minTimeMs: 2000 } }),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it("rejects game:start with a non-object config", () => {
+    const msg = { ...gameStart({ gameId: "trivia" }), payload: { gameId: "trivia", config: 5 } };
+    expect(validateClient(msg)).toEqual({
+      ok: false,
+      error: "game:start.config must be object",
+    });
+    const nullConfig = {
+      ...gameStart({ gameId: "trivia" }),
+      payload: { gameId: "trivia", config: null },
+    };
+    expect(validateClient(nullConfig).ok).toBe(false);
   });
 });

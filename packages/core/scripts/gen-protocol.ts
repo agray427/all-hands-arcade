@@ -11,6 +11,9 @@ const REF_IMPORTS: Record<string, string> = {
   RoomView: "../models/index.js",
   Participant: "../models/index.js",
   EngineErrorCode: "./envelope.js",
+  GameCatalog: "../game/types.js",
+  GameResults: "../game/types.js",
+  GameView: "../game/types.js",
 };
 
 function pascal(name: string): string {
@@ -30,13 +33,21 @@ function payloadTypeName(messageType: string): string {
   return `${pascal(messageType)}Payload`;
 }
 
-function tsType(spec: FieldSpec): { type: string; optional: boolean; ref: string | null } {
+function tsType(spec: FieldSpec): {
+  type: string;
+  optional: boolean;
+  ref: string | null;
+  check: string | null;
+} {
   const optional = spec.endsWith("?");
   const base = optional ? spec.slice(0, -1) : spec;
   if (PRIMITIVES.has(base)) {
-    return { type: base, optional, ref: null };
+    return { type: base, optional, ref: null, check: base };
   }
-  return { type: base, optional, ref: base };
+  if (base === "object") {
+    return { type: "Record<string, unknown>", optional, ref: null, check: "object" };
+  }
+  return { type: base, optional, ref: base, check: null };
 }
 
 function renderPayloadInterface(messageType: string, fields: MessageFields): string {
@@ -69,15 +80,20 @@ function renderServerBuilder(messageType: string): string {
 function renderValidatorCase(messageType: string, fields: MessageFields): string {
   const checks: string[] = [];
   for (const [field, spec] of Object.entries(fields)) {
-    const { type, optional } = tsType(spec);
+    const { optional, check } = tsType(spec);
+    if (!check) continue;
     const access = `payload.${field}`;
+    const invalid =
+      check === "object"
+        ? `(typeof ${access} !== "object" || ${access} === null)`
+        : `typeof ${access} !== "${check}"`;
     if (optional) {
       checks.push(
-        `      if (${access} !== undefined && typeof ${access} !== "${type}") return { ok: false, error: "${messageType}.${field} must be ${type}" };`,
+        `      if (${access} !== undefined && ${invalid}) return { ok: false, error: "${messageType}.${field} must be ${check}" };`,
       );
     } else {
       checks.push(
-        `      if (typeof ${access} !== "${type}") return { ok: false, error: "${messageType}.${field} must be ${type}" };`,
+        `      if (${invalid}) return { ok: false, error: "${messageType}.${field} must be ${check}" };`,
       );
     }
   }
