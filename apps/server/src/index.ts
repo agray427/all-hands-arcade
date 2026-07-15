@@ -4,6 +4,7 @@ import { createArcadeServer } from "./server.js";
 const server = await createArcadeServer({
   port: config.port,
   clientOrigin: config.clientOrigin,
+  roomTtlMs: config.roomTtlMs,
 });
 
 process.stdout.write(

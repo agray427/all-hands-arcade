@@ -127,6 +127,14 @@ describe("RoomStore", () => {
     expect(store.rejoin(view.code, participant.id, resumeToken)).toBeNull();
   });
 
+  it("removeRoom deletes the room and invalidates its tokens", () => {
+    const store = new RoomStore();
+    const { view, host, resumeToken } = store.create("Ada");
+    store.removeRoom(view.code);
+    expect(store.get(view.code)).toBeNull();
+    expect(store.rejoin(view.code, host.id, resumeToken)).toBeNull();
+  });
+
   it("views are snapshots, not live references", () => {
     const store = new RoomStore();
     const { view, host } = store.create("Ada");

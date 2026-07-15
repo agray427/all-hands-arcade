@@ -88,6 +88,11 @@ export class RoomStore {
     return toView(room);
   }
 
+  removeRoom(code: RoomCode): void {
+    this.rooms.delete(code);
+    this.tokens.delete(code);
+  }
+
   remove(code: RoomCode, id: string): RoomView | null {
     const room = this.rooms.get(code);
     if (!room) return null;

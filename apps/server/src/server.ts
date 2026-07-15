@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import {
+  roomClosed,
   roomState,
   type AnyGameDefinition,
   type Participant,
@@ -10,6 +11,7 @@ import {
 } from "@arcade/core";
 import { trivia } from "@arcade/trivia";
 import { GameCoordinator } from "./games.js";
+import { RoomJanitor } from "./lifecycle.js";
 import { RoomStore } from "./rooms.js";
 import { handle, type GameAction, type Outbound } from "./router.js";
 
@@ -42,7 +44,10 @@ export interface ArcadeServerOptions {
   port: number;
   clientOrigin: string;
   games?: AnyGameDefinition[];
+  roomTtlMs?: number;
 }
+
+export const defaultRoomTtlMs = 300_000;
 
 export interface ArcadeServer {
   io: ArcadeIoServer;
@@ -87,7 +92,9 @@ export async function createArcadeServer(
     }
   };
 
-  const games = new GameCoordinator(options.games ?? defaultGames, broadcast);
+  const games = new GameCoordinator(options.games ?? defaultGames, broadcast, (code) =>
+    janitor.check(code),
+  );
 
   const playersOf = (code: string): Participant[] => {
     const view = store.get(code);
@@ -96,6 +103,31 @@ export async function createArcadeServer(
   };
 
   const owners = new Map<string, string>();
+
+  const expire = (code: string) => {
+    broadcast(code, "all", roomClosed({ reason: "room closed after host inactivity" }, "all"));
+    const socketIds = io.sockets.adapter.rooms.get(code);
+    if (socketIds) {
+      for (const socketId of [...socketIds]) {
+        const member = io.sockets.sockets.get(socketId);
+        const participantId = member?.data.participantId;
+        if (participantId && owners.get(participantId) === socketId) {
+          owners.delete(participantId);
+        }
+        detach(socketId);
+      }
+    }
+    store.removeRoom(code);
+    games.dispose(code);
+    janitor.disarm(code);
+  };
+
+  const janitor = new RoomJanitor(
+    store,
+    games,
+    options.roomTtlMs ?? defaultRoomTtlMs,
+    expire,
+  );
 
   const detach = (socketId: string) => {
     const socket = io.sockets.sockets.get(socketId);
@@ -157,6 +189,7 @@ export async function createArcadeServer(
         socket.data.role = role;
         socket.join(roomCode);
         socket.join(roleRoom(roomCode, role));
+        janitor.check(roomCode);
       }
 
       for (const out of result.outbound) emit(out);
@@ -171,6 +204,7 @@ export async function createArcadeServer(
         for (const message of runGameAction(result.gameAction)) {
           socket.emit("message:outgoing", message);
         }
+        if (socket.data.roomCode) janitor.check(socket.data.roomCode);
       }
 
       if (result.leave && socket.data.roomCode) {
@@ -183,6 +217,7 @@ export async function createArcadeServer(
         socket.data.role = null;
         const view = store.get(code);
         if (!view || Object.keys(view.participants).length === 0) games.dispose(code);
+        janitor.check(code);
       }
     });
 
@@ -193,6 +228,7 @@ export async function createArcadeServer(
       owners.delete(participantId);
       const view = store.setConnected(roomCode, participantId, false);
       if (view) io.to(roomCode).emit("message:outgoing", roomState({ room: view }, "all"));
+      janitor.check(roomCode);
     });
   });
 
@@ -208,6 +244,7 @@ export async function createArcadeServer(
     port,
     close: () =>
       new Promise<void>((resolve, reject) => {
+        janitor.dispose();
         io.close((err) => (err ? reject(err) : resolve()));
       }),
   };

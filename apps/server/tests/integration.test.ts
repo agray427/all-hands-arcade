@@ -288,6 +288,81 @@ describe("arcade server integration", () => {
     });
   });
 
+  describe("room lifecycle", () => {
+    const TTL = 200;
+
+    beforeEach(async () => {
+      await server.close();
+      server = await createArcadeServer({ port: 0, clientOrigin: "*", roomTtlMs: TTL });
+    });
+
+    async function rejoin(inbox: Inbox, welcome: RoomWelcomePayload) {
+      const msg = roomRejoin({
+        roomCode: welcome.room.code,
+        participantId: welcome.youId,
+        resumeToken: welcome.resumeToken,
+      });
+      inbox.socket.emit("message:incoming", msg);
+      return inbox.waitFor((m) => m.replyTo === msg.messageId);
+    }
+
+    it("expires a hostless room after the ttl, notifies players, and invalidates tokens", async () => {
+      const host = await connect();
+      const hostWelcome = await createRoom(host);
+      const player = await connect();
+      const playerWelcome = await joinRoom(player, hostWelcome.room.code, "Grace");
+
+      host.socket.disconnect();
+
+      const closed = await player.waitFor((m) => m.type === "room:closed");
+      expect((closed.payload as { reason: string }).reason).toContain("host");
+      expect(server.store.get(hostWelcome.room.code)).toBeNull();
+
+      const reply = await rejoin(player, playerWelcome);
+      expect(reply.type).toBe("engine:error");
+      expect((reply.payload as EngineErrorPayload).code).toBe("REJOIN_FAILED");
+    });
+
+    it("host rejoining within the ttl keeps the room alive", async () => {
+      const host = await connect();
+      const hostWelcome = await createRoom(host);
+      host.socket.disconnect();
+
+      const revived = await connect();
+      const reply = await rejoin(revived, hostWelcome);
+      expect(reply.type).toBe("room:welcome");
+
+      await new Promise((resolve) => setTimeout(resolve, TTL * 2));
+      expect(server.store.get(hostWelcome.room.code)).not.toBeNull();
+      expect(revived.ofType("room:closed")).toHaveLength(0);
+    });
+
+    it("never expires a room while a game is running", async () => {
+      const host = await connect();
+      const hostWelcome = await createRoom(host);
+      const p1 = await connect();
+      await joinRoom(p1, hostWelcome.room.code, "Grace");
+      const p2 = await connect();
+      await joinRoom(p2, hostWelcome.room.code, "Hedy");
+
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          config: { rounds: 2, questionTimeMs: 30000, revealTimeMs: 500 },
+        }),
+      );
+      await p1.waitFor((m) => m.type === "game:state");
+
+      host.socket.disconnect();
+      await new Promise((resolve) => setTimeout(resolve, TTL * 2));
+
+      expect(server.store.get(hostWelcome.room.code)).not.toBeNull();
+      expect(server.games.hasSession(hostWelcome.room.code)).toBe(true);
+      expect(p1.ofType("room:closed")).toHaveLength(0);
+    });
+  });
+
   describe("games", () => {
     interface GameRoom {
       host: Inbox;

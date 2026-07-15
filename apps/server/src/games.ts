@@ -49,6 +49,7 @@ export class GameCoordinator {
   constructor(
     definitions: AnyGameDefinition[],
     private emit: GameEmitter,
+    private onDispose?: (roomCode: string) => void,
   ) {
     this.registry = new Map(definitions.map((d) => [d.id, d]));
   }
@@ -197,6 +198,7 @@ export class GameCoordinator {
     if (!session) return;
     for (const timer of session.timers.values()) clearTimeout(timer);
     this.sessions.delete(roomCode);
+    this.onDispose?.(roomCode);
   }
 
   private onTimer(roomCode: string, timerId: string): void {
