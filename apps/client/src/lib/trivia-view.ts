@@ -1,7 +1,7 @@
 import type { GameResults } from "@arcade/core";
 
 export interface TriviaView {
-  variant: "classic" | "survival";
+  variant: "classic" | "survival" | "host-paced";
   phase: "question" | "reveal" | "ended";
   round: number;
   totalRounds: number;

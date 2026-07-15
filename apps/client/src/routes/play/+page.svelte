@@ -83,7 +83,7 @@
       <span>Round {view.round} / {view.totalRounds}</span>
     </div>
 
-    {#if view.phase === "question"}
+    {#if view.phase === "question" && view.variant !== "host-paced"}
       <Countdown deadline={view.deadline} timeMs={view.timeMs} />
     {/if}
 
@@ -119,7 +119,9 @@
           ? "Correct!"
           : outcome === "wrong"
             ? "Wrong answer."
-            : "Too slow!"}
+            : view.variant === "host-paced"
+              ? "No answer."
+              : "Too slow!"}
       </p>
     {/if}
   </section>

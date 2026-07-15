@@ -190,6 +190,11 @@ export class ArcadeClient {
     this.socket.send(gameEnd());
   }
 
+  advanceRound(): void {
+    if (!this.game) return;
+    this.socket.send(envelope("round:advance", {}, { gameId: this.game.gameId }));
+  }
+
   submitAnswer(choice: number): void {
     if (!this.game || this.myChoice !== null) return;
     this.myChoice = choice;

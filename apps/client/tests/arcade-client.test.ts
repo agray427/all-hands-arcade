@@ -122,6 +122,19 @@ describe("ArcadeClient games", () => {
     expect(client.results).toEqual(results);
   });
 
+  it("advanceRound sends round:advance for the active game", () => {
+    const client = new ArcadeClient();
+    client.advanceRound();
+    expect(stub.emitted).toHaveLength(0);
+
+    stub.receive(gameState({ gameId: "trivia", view: questionView(1) }, "all"));
+    client.advanceRound();
+    const sent = stub.lastSent();
+    expect(sent.type).toBe("round:advance");
+    expect(sent.gameId).toBe("trivia");
+    expect(sent.payload).toEqual({});
+  });
+
   it("surfaces engine errors from startGame", async () => {
     const client = new ArcadeClient();
     const pending = client.startGame("trivia", "survival", { minTimeMs: 500 });

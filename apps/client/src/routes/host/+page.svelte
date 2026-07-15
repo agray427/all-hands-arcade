@@ -68,7 +68,7 @@
         </span>
       </div>
 
-      {#if view.phase === "question"}
+      {#if view.phase === "question" && view.variant !== "host-paced"}
         <Countdown deadline={view.deadline} timeMs={view.timeMs} />
       {/if}
 
@@ -89,6 +89,18 @@
 
       {#if view.variant === "survival"}
         <p class="survivors">{alive.length} of {view.contestants.length} still standing</p>
+      {/if}
+
+      {#if view.variant === "host-paced"}
+        {#if view.phase === "question"}
+          <button class="primary" onclick={() => arcade.advanceRound()}>
+            Reveal answers
+          </button>
+        {:else if view.phase === "reveal"}
+          <button class="primary" onclick={() => arcade.advanceRound()}>
+            {view.round < view.totalRounds ? "Next round" : "Show results"}
+          </button>
+        {/if}
       {/if}
 
       <button class="ghost" onclick={() => arcade.endGame()}>End game</button>
