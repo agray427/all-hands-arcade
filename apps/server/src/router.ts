@@ -44,6 +44,7 @@ export interface HandleResult {
   outbound: Outbound[];
   identity?: Identity;
   leave?: boolean;
+  resumed?: boolean;
   gameAction?: GameAction;
 }
 
@@ -75,13 +76,17 @@ export function handle(
 
   switch (msg.type) {
     case "room:create": {
-      const { view, host } = store.create(msg.payload.hostName);
+      const { view, host, resumeToken } = store.create(msg.payload.hostName);
       return {
         identity: { participantId: host.id, roomCode: view.code, role: "host" },
         outbound: [
           {
             target: "self",
-            message: roomWelcome({ room: view, youId: host.id }, "self", msg.messageId),
+            message: roomWelcome(
+              { room: view, youId: host.id, resumeToken },
+              "self",
+              msg.messageId,
+            ),
           },
           { target: "all", message: roomState({ room: view }, "all") },
         ],
@@ -96,7 +101,7 @@ export function handle(
       if (!result) {
         return fail("ROOM_NOT_FOUND", `no room: ${msg.payload.roomCode}`, msg.messageId);
       }
-      const { view, participant } = result;
+      const { view, participant, resumeToken } = result;
       return {
         identity: {
           participantId: participant.id,
@@ -107,13 +112,43 @@ export function handle(
           {
             target: "self",
             message: roomWelcome(
-              { room: view, youId: participant.id },
+              { room: view, youId: participant.id, resumeToken },
               "self",
               msg.messageId,
             ),
           },
           { target: "all", message: roomState({ room: view }, "all") },
           { target: "host", message: roomPlayerJoined({ player: participant }, "host") },
+        ],
+      };
+    }
+    case "room:rejoin": {
+      const result = store.rejoin(
+        msg.payload.roomCode,
+        msg.payload.participantId,
+        msg.payload.resumeToken,
+      );
+      if (!result) {
+        return fail("REJOIN_FAILED", "unknown room, participant, or token", msg.messageId);
+      }
+      const { view, participant, resumeToken } = result;
+      return {
+        resumed: true,
+        identity: {
+          participantId: participant.id,
+          roomCode: view.code,
+          role: participant.role,
+        },
+        outbound: [
+          {
+            target: "self",
+            message: roomWelcome(
+              { room: view, youId: participant.id, resumeToken },
+              "self",
+              msg.messageId,
+            ),
+          },
+          { target: "all", message: roomState({ room: view }, "all") },
         ],
       };
     }

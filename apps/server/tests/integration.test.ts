@@ -7,6 +7,7 @@ import {
   roomCreate,
   roomJoin,
   roomLeave,
+  roomRejoin,
   type EngineErrorPayload,
   type GameCatalog,
   type GameResults,
@@ -197,6 +198,96 @@ describe("arcade server integration", () => {
     expect(payload.code).toBe("ROOM_NOT_FOUND");
   });
 
+  describe("reconnection", () => {
+    async function rejoin(
+      inbox: Inbox,
+      welcome: RoomWelcomePayload,
+    ): Promise<RoomWelcomePayload> {
+      const msg = roomRejoin({
+        roomCode: welcome.room.code,
+        participantId: welcome.youId,
+        resumeToken: welcome.resumeToken,
+      });
+      inbox.socket.emit("message:incoming", msg);
+      const reply = await inbox.waitFor((m) => m.replyTo === msg.messageId);
+      expect(reply.type).toBe("room:welcome");
+      return reply.payload as RoomWelcomePayload;
+    }
+
+    it("a disconnected player reclaims the same identity on a new socket", async () => {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const player = await connect();
+      const welcome = await joinRoom(player, room.code, "Grace");
+
+      player.socket.disconnect();
+      await host.waitFor(
+        (m) =>
+          m.type === "room:state" &&
+          (m.payload as RoomStatePayload).room.participants[welcome.youId]?.connected ===
+            false,
+      );
+
+      const revived = await connect();
+      const replay = await rejoin(revived, welcome);
+      expect(replay.youId).toBe(welcome.youId);
+      expect(replay.resumeToken).toBe(welcome.resumeToken);
+
+      const state = await host.waitFor(
+        (m) =>
+          m.type === "room:state" &&
+          (m.payload as RoomStatePayload).room.participants[welcome.youId]?.connected ===
+            true,
+      );
+      const roster = (state.payload as RoomStatePayload).room.participants;
+      expect(Object.keys(roster)).toHaveLength(2);
+      expect(roster[welcome.youId]!.name).toBe("Grace");
+    });
+
+    it("rejects a rejoin with a forged token", async () => {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const player = await connect();
+      const welcome = await joinRoom(player, room.code, "Grace");
+
+      const intruder = await connect();
+      const msg = roomRejoin({
+        roomCode: room.code,
+        participantId: welcome.youId,
+        resumeToken: "t_forged",
+      });
+      intruder.socket.emit("message:incoming", msg);
+      const error = await intruder.waitFor((m) => m.type === "engine:error");
+      expect(error.replyTo).toBe(msg.messageId);
+      expect((error.payload as EngineErrorPayload).code).toBe("REJOIN_FAILED");
+    });
+
+    it("a takeover detaches the old socket so its disconnect cannot mark the player offline", async () => {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const stale = await connect();
+      const welcome = await joinRoom(stale, room.code, "Grace");
+
+      const fresh = await connect();
+      await rejoin(fresh, welcome);
+      await settle();
+
+      stale.socket.disconnect();
+      await settle();
+
+      const roster = server.store.get(room.code)!.participants;
+      expect(roster[welcome.youId]!.connected).toBe(true);
+      const offline = host
+        .ofType("room:state")
+        .filter(
+          (m) =>
+            (m.payload as RoomStatePayload).room.participants[welcome.youId]?.connected ===
+            false,
+        );
+      expect(offline).toHaveLength(0);
+    });
+  });
+
   describe("games", () => {
     interface GameRoom {
       host: Inbox;
@@ -356,6 +447,61 @@ describe("arcade server integration", () => {
       const payload = error.payload as EngineErrorPayload;
       expect(payload.code).toBe("INVALID_CONFIG");
       expect(payload.message).toContain("minTimeMs");
+    });
+
+    it("a rejoining player resumes the running game with identity and score intact", async () => {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const p1 = await connect();
+      const w1 = await joinRoom(p1, room.code, "Grace");
+      const p2 = await connect();
+      await joinRoom(p2, room.code, "Hedy");
+
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          config: { rounds: 2, questionTimeMs: 30000, revealTimeMs: 500 },
+        }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+      const right1 = correctFor(q1);
+      submitAnswer(p1, right1);
+      submitAnswer(p2, (right1 + 1) % 4);
+
+      await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 2));
+      p1.socket.disconnect();
+
+      const revived = await connect();
+      const msg = roomRejoin({
+        roomCode: room.code,
+        participantId: w1.youId,
+        resumeToken: w1.resumeToken,
+      });
+      revived.socket.emit("message:incoming", msg);
+
+      const welcome = await revived.waitFor((m) => m.replyTo === msg.messageId);
+      expect(welcome.type).toBe("room:welcome");
+      const started = await revived.waitFor((m) => m.type === "game:started");
+      expect((started.payload as { gameId: string }).gameId).toBe("trivia");
+      const snapshot = viewOf(
+        await revived.waitFor(stateWith((v) => v.phase === "question" && v.round === 2)),
+      );
+      expect(snapshot.correctIndex).toBeUndefined();
+
+      const right2 = correctFor(snapshot);
+      revived.socket.emit(
+        "message:incoming",
+        envelope("answer:submit", { choice: right2 }, { gameId: "trivia" }),
+      );
+      submitAnswer(p2, (right2 + 1) % 4);
+
+      const ended = await revived.waitFor((m) => m.type === "game:ended");
+      const results = (ended.payload as { results: GameResults }).results;
+      expect(results[0]!.participantId).toBe(w1.youId);
+      expect(results[0]!.rank).toBe(1);
+      expect(results[0]!.score).toBeGreaterThan(0);
     });
 
     it("rejects game:start from players", async () => {

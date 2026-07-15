@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { envelope, gameEnd, gameList, gameStart, roomCreate, roomJoin, roomLeave } from "@arcade/core";
-import type { EngineErrorPayload, ServerBroadcastEnvelope } from "@arcade/core";
+import {
+  envelope,
+  gameEnd,
+  gameList,
+  gameStart,
+  roomCreate,
+  roomJoin,
+  roomLeave,
+  roomRejoin,
+} from "@arcade/core";
+import type {
+  EngineErrorPayload,
+  RoomWelcomePayload,
+  ServerBroadcastEnvelope,
+} from "@arcade/core";
 import { RoomStore } from "../src/rooms.js";
 import { handle, type ConnectionContext } from "../src/router.js";
 
@@ -73,6 +86,55 @@ describe("handle room:join", () => {
     expect(out.target).toBe("self");
     expect(errorPayload(out.message).code).toBe("ROOM_NOT_FOUND");
     expect(out.message.replyTo).toBe(msg.messageId);
+  });
+});
+
+describe("handle room:rejoin", () => {
+  it("reclaims the identity, replays the welcome, and flags the resume", () => {
+    const store = new RoomStore();
+    const { view } = store.create("Ada");
+    const joinResult = handle(store, emptyCtx(), roomJoin({ roomCode: view.code, name: "Grace" }));
+    const welcome = joinResult.outbound[0]!.message.payload as RoomWelcomePayload;
+    store.setConnected(view.code, welcome.youId, false);
+
+    const msg = roomRejoin({
+      roomCode: view.code,
+      participantId: welcome.youId,
+      resumeToken: welcome.resumeToken,
+    });
+    const result = handle(store, emptyCtx(), msg);
+
+    expect(result.resumed).toBe(true);
+    expect(result.identity).toEqual({
+      participantId: welcome.youId,
+      roomCode: view.code,
+      role: "player",
+    });
+    expect(result.outbound.map((o) => [o.target, o.message.type])).toEqual([
+      ["self", "room:welcome"],
+      ["all", "room:state"],
+    ]);
+    const replayed = result.outbound[0]!.message.payload as RoomWelcomePayload;
+    expect(replayed.youId).toBe(welcome.youId);
+    expect(replayed.resumeToken).toBe(welcome.resumeToken);
+    expect(replayed.room.participants[welcome.youId]!.connected).toBe(true);
+    expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
+  });
+
+  it("fails with REJOIN_FAILED on a bad token", () => {
+    const store = new RoomStore();
+    const { view, host } = store.create("Ada");
+    const msg = roomRejoin({
+      roomCode: view.code,
+      participantId: host.id,
+      resumeToken: "t_forged",
+    });
+    const result = handle(store, emptyCtx(), msg);
+
+    expect(result.identity).toBeUndefined();
+    expect(result.resumed).toBeUndefined();
+    expect(errorPayload(result.outbound[0]!.message).code).toBe("REJOIN_FAILED");
+    expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
   });
 });
 

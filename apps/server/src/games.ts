@@ -61,6 +61,30 @@ export class GameCoordinator {
     return this.sessions.has(roomCode);
   }
 
+  resume(ctx: ConnectionContext): SelfReplies {
+    if (!ctx.roomCode || !ctx.role) return [];
+    const session = this.sessions.get(ctx.roomCode);
+    if (!session) return [];
+    const audience: GameAudience = ctx.role === "host" ? "host" : "player";
+    return [
+      gameStarted(
+        {
+          gameId: session.definition.id,
+          variantId: session.variantId,
+          config: session.config,
+        },
+        "self",
+      ),
+      gameState(
+        {
+          gameId: session.definition.id,
+          view: session.definition.view(session.state, audience),
+        },
+        "self",
+      ),
+    ];
+  }
+
   start(
     ctx: ConnectionContext,
     payload: GameStartPayload,

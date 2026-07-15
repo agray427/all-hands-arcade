@@ -236,6 +236,32 @@ describe("GameCoordinator", () => {
     });
   });
 
+  describe("resume", () => {
+    it("returns nothing when no session is running", () => {
+      expect(games.resume(hostCtx())).toEqual([]);
+      expect(games.resume({ participantId: null, roomCode: null, role: null })).toEqual([]);
+    });
+
+    it("replays game:started and the current view for the caller's role", () => {
+      games.start(hostCtx(), { gameId: "trivia", variantId: "survival" }, players(2));
+
+      const forPlayer = games.resume(playerCtx("p1"));
+      expect(forPlayer.map((m) => [m.type, m.target])).toEqual([
+        ["game:started", "self"],
+        ["game:state", "self"],
+      ]);
+      const startedPayload = forPlayer[0]!.payload as { gameId: string; variantId: string };
+      expect(startedPayload.gameId).toBe("trivia");
+      expect(startedPayload.variantId).toBe("survival");
+      const playerView = (forPlayer[1]!.payload as { view: Record<string, unknown> }).view;
+      expect(playerView.correctIndex).toBeUndefined();
+
+      const forHost = games.resume(hostCtx());
+      const hostView = (forHost[1]!.payload as { view: Record<string, unknown> }).view;
+      expect(hostView).toEqual(stateViews("host").at(-1));
+    });
+  });
+
   describe("dispose", () => {
     it("clears pending timers so nothing fires later", () => {
       games.start(

@@ -95,6 +95,21 @@ export async function createArcadeServer(
     return Object.values(view.participants).filter((p) => p.role === "player");
   };
 
+  const owners = new Map<string, string>();
+
+  const detach = (socketId: string) => {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) return;
+    const { roomCode, role } = socket.data;
+    if (roomCode) {
+      socket.leave(roomCode);
+      if (role) socket.leave(roleRoom(roomCode, role));
+    }
+    socket.data.participantId = null;
+    socket.data.roomCode = null;
+    socket.data.role = null;
+  };
+
   io.on("connection", (socket) => {
     socket.data.participantId = null;
     socket.data.roomCode = null;
@@ -134,6 +149,9 @@ export async function createArcadeServer(
 
       if (result.identity) {
         const { participantId, roomCode, role } = result.identity;
+        const previous = owners.get(participantId);
+        if (previous && previous !== socket.id) detach(previous);
+        owners.set(participantId, socket.id);
         socket.data.participantId = participantId;
         socket.data.roomCode = roomCode;
         socket.data.role = role;
@@ -143,6 +161,12 @@ export async function createArcadeServer(
 
       for (const out of result.outbound) emit(out);
 
+      if (result.resumed) {
+        for (const message of games.resume(socket.data)) {
+          socket.emit("message:outgoing", message);
+        }
+      }
+
       if (result.gameAction) {
         for (const message of runGameAction(result.gameAction)) {
           socket.emit("message:outgoing", message);
@@ -151,6 +175,7 @@ export async function createArcadeServer(
 
       if (result.leave && socket.data.roomCode) {
         const code = socket.data.roomCode;
+        if (socket.data.participantId) owners.delete(socket.data.participantId);
         socket.leave(code);
         if (socket.data.role) socket.leave(roleRoom(code, socket.data.role));
         socket.data.participantId = null;
@@ -164,6 +189,8 @@ export async function createArcadeServer(
     socket.on("disconnect", () => {
       const { roomCode, participantId } = socket.data;
       if (!roomCode || !participantId) return;
+      if (owners.get(participantId) !== socket.id) return;
+      owners.delete(participantId);
       const view = store.setConnected(roomCode, participantId, false);
       if (view) io.to(roomCode).emit("message:outgoing", roomState({ room: view }, "all"));
     });

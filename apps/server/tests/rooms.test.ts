@@ -77,6 +77,56 @@ describe("RoomStore", () => {
     expect(store.remove("ZZZZ", "p_x")).toBeNull();
   });
 
+  it("issues a distinct resume token to every participant", () => {
+    const store = new RoomStore();
+    const { view, resumeToken } = store.create("Ada");
+    const joined = store.join(view.code, "Grace", false)!;
+
+    expect(resumeToken).toMatch(/^t_/);
+    expect(joined.resumeToken).toMatch(/^t_/);
+    expect(joined.resumeToken).not.toBe(resumeToken);
+  });
+
+  it("never exposes resume tokens in room views", () => {
+    const store = new RoomStore();
+    const { view, host } = store.create("Ada");
+    expect(JSON.stringify(store.get(view.code))).not.toContain("t_");
+    expect(JSON.stringify(view.participants[host.id])).not.toContain("t_");
+  });
+
+  it("rejoin with a valid token reclaims the identity and reconnects it", () => {
+    const store = new RoomStore();
+    const { view } = store.create("Ada");
+    const { participant, resumeToken } = store.join(view.code, "Grace", false)!;
+    store.setConnected(view.code, participant.id, false);
+
+    const result = store.rejoin(view.code, participant.id, resumeToken);
+    expect(result).not.toBeNull();
+    expect(result!.participant.id).toBe(participant.id);
+    expect(result!.participant.name).toBe("Grace");
+    expect(result!.participant.connected).toBe(true);
+    expect(result!.view.participants[participant.id]!.connected).toBe(true);
+    expect(Object.keys(result!.view.participants)).toHaveLength(2);
+  });
+
+  it("rejoin rejects a wrong token, unknown participant, or unknown room", () => {
+    const store = new RoomStore();
+    const { view } = store.create("Ada");
+    const { participant, resumeToken } = store.join(view.code, "Grace", false)!;
+
+    expect(store.rejoin(view.code, participant.id, "t_forged")).toBeNull();
+    expect(store.rejoin(view.code, "p_ghost", resumeToken)).toBeNull();
+    expect(store.rejoin("ZZZZ", participant.id, resumeToken)).toBeNull();
+  });
+
+  it("rejoin rejects a token after the participant left", () => {
+    const store = new RoomStore();
+    const { view } = store.create("Ada");
+    const { participant, resumeToken } = store.join(view.code, "Grace", false)!;
+    store.remove(view.code, participant.id);
+    expect(store.rejoin(view.code, participant.id, resumeToken)).toBeNull();
+  });
+
   it("views are snapshots, not live references", () => {
     const store = new RoomStore();
     const { view, host } = store.create("Ada");
