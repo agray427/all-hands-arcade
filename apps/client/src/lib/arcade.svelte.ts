@@ -21,6 +21,7 @@ interface WelcomePayload {
   room: RoomView;
   youId: string;
   resumeToken: string;
+  hostKey?: string;
 }
 
 interface StoredSession {
@@ -69,6 +70,7 @@ export class ArcadeClient {
   myChoice = $state<number | null>(null);
   connected = $state(true);
   notice = $state<string | null>(null);
+  hostKey = $state<string | null>(null);
 
   roster = $derived.by<Participant[]>(() =>
     this.room ? Object.values(this.room.participants) : [],
@@ -109,6 +111,7 @@ export class ArcadeClient {
       this.game = null;
       this.results = null;
       this.myChoice = null;
+      this.hostKey = null;
     });
     this.socket.on("game:ended", (payload) => {
       this.results = payload.results;
@@ -149,10 +152,15 @@ export class ArcadeClient {
     }
   }
 
-  async joinRoom(roomCode: string, name: string, asHost: boolean): Promise<void> {
+  async joinRoom(
+    roomCode: string,
+    name: string,
+    asHost: boolean,
+    hostKey?: string,
+  ): Promise<void> {
     this.lastError = null;
     try {
-      await this.socket.request(roomJoin({ roomCode, name, asHost }));
+      await this.socket.request(roomJoin({ roomCode, name, asHost, hostKey }));
     } catch (error) {
       this.captureError(error);
     }
@@ -166,6 +174,7 @@ export class ArcadeClient {
     this.game = null;
     this.results = null;
     this.myChoice = null;
+    this.hostKey = null;
   }
 
   async loadCatalog(): Promise<void> {
@@ -209,6 +218,7 @@ export class ArcadeClient {
     this.notice = null;
     this.room = payload.room;
     this.you = payload.room.participants[payload.youId] ?? null;
+    this.hostKey = payload.hostKey ?? null;
     writeSession({
       roomCode: payload.room.code,
       participantId: payload.youId,

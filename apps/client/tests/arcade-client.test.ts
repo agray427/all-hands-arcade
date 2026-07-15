@@ -122,6 +122,29 @@ describe("ArcadeClient games", () => {
     expect(client.results).toEqual(results);
   });
 
+  it("exposes the host key from a host welcome and clears it on leave", () => {
+    const client = new ArcadeClient();
+    stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1", hostKey: "h_1" }, "self"));
+    expect(client.hostKey).toBe("h_1");
+
+    client.leave();
+    expect(client.hostKey).toBeNull();
+
+    stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1" }, "self"));
+    expect(client.hostKey).toBeNull();
+  });
+
+  it("joinRoom forwards the host key", () => {
+    const client = new ArcadeClient();
+    void client.joinRoom("ABCD", "Grace", true, "h_1");
+    expect(stub.lastSent().payload).toEqual({
+      roomCode: "ABCD",
+      name: "Grace",
+      asHost: true,
+      hostKey: "h_1",
+    });
+  });
+
   it("advanceRound sends round:advance for the active game", () => {
     const client = new ArcadeClient();
     client.advanceRound();

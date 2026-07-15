@@ -22,8 +22,14 @@ function toView(room: Room): RoomView {
 export class RoomStore {
   private rooms = new Map<RoomCode, Room>();
   private tokens = new Map<RoomCode, Map<string, string>>();
+  private hostKeys = new Map<RoomCode, string>();
 
-  create(hostName: string): { view: RoomView; host: Participant; resumeToken: string } {
+  create(hostName: string): {
+    view: RoomView;
+    host: Participant;
+    resumeToken: string;
+    hostKey: string;
+  } {
     let code = generateRoomCode();
     while (this.rooms.has(code)) code = generateRoomCode();
 
@@ -40,7 +46,13 @@ export class RoomStore {
     };
     this.rooms.set(code, room);
     const resumeToken = this.issueToken(code, host.id);
-    return { view: toView(room), host, resumeToken };
+    const hostKey = generateId("h");
+    this.hostKeys.set(code, hostKey);
+    return { view: toView(room), host, resumeToken, hostKey };
+  }
+
+  hostKey(code: RoomCode): string | null {
+    return this.hostKeys.get(code) ?? null;
   }
 
   join(
@@ -91,6 +103,7 @@ export class RoomStore {
   removeRoom(code: RoomCode): void {
     this.rooms.delete(code);
     this.tokens.delete(code);
+    this.hostKeys.delete(code);
   }
 
   remove(code: RoomCode, id: string): RoomView | null {

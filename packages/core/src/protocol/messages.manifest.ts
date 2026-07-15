@@ -1,7 +1,12 @@
 export const manifest = {
   client: {
     "room:create": { hostName: "string" },
-    "room:join": { roomCode: "string", name: "string", asHost: "boolean?" },
+    "room:join": {
+      roomCode: "string",
+      name: "string",
+      asHost: "boolean?",
+      hostKey: "string?",
+    },
     "room:rejoin": { roomCode: "string", participantId: "string", resumeToken: "string" },
     "room:leave": {},
     "game:list": {},
@@ -9,7 +14,12 @@ export const manifest = {
     "game:end": {},
   },
   server: {
-    "room:welcome": { room: "RoomView", youId: "string", resumeToken: "string" },
+    "room:welcome": {
+      room: "RoomView",
+      youId: "string",
+      resumeToken: "string",
+      hostKey: "string?",
+    },
     "room:state": { room: "RoomView" },
     "room:player_joined": { player: "Participant" },
     "room:closed": { reason: "string" },
