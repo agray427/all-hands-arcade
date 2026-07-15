@@ -52,6 +52,7 @@ export interface VariantDefinition {
   name: string;
   description: string;
   configFields: Record<string, ConfigField>;
+  hostDriven?: boolean;
   validateConfig?(config: GameConfig): string | null;
 }
 
@@ -86,6 +87,7 @@ export interface GameCatalogVariant {
   name: string;
   description: string;
   configFields: Record<string, ConfigField>;
+  hostDriven: boolean;
 }
 
 export interface GameCatalogEntry {

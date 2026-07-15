@@ -65,6 +65,7 @@ export function toCatalog(definitions: AnyGameDefinition[]): GameCatalog {
       name: v.name,
       description: v.description,
       configFields: v.configFields,
+      hostDriven: v.hostDriven ?? false,
     })),
   }));
 }
