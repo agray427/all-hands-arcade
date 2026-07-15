@@ -126,6 +126,13 @@
       </ul>
     </section>
 
+    {#if arcade.hostKey}
+      <p class="hostkey">
+        Co-host code: <span class="key">{arcade.hostKey}</span>
+        <span class="hint">— share it only with people who should run the show</span>
+      </p>
+    {/if}
+
     <button class="ghost" onclick={() => arcade.leave()}>Leave</button>
   {/if}
 {/if}
@@ -298,5 +305,20 @@
     background: #0e1a2b;
     border-radius: 8px;
     padding: 0.5rem 0.75rem;
+  }
+  .hostkey {
+    color: #9aa1b1;
+    font-size: 0.9rem;
+  }
+  .hostkey .key {
+    font-family: monospace;
+    color: #e2e6f0;
+    background: #171a23;
+    border: 1px solid #262a36;
+    border-radius: 6px;
+    padding: 0.1rem 0.4rem;
+  }
+  .hostkey .hint {
+    font-size: 0.8rem;
   }
 </style>

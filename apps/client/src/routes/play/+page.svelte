@@ -8,6 +8,7 @@
   let roomCode = $state("");
   let name = $state("");
   let asHost = $state(false);
+  let hostKey = $state("");
 
   onMount(() => {
     void arcade.resume();
@@ -36,7 +37,7 @@
   function join() {
     const code = roomCode.trim().toUpperCase();
     const who = name.trim();
-    if (code && who) arcade.joinRoom(code, who, asHost);
+    if (code && who) arcade.joinRoom(code, who, asHost, hostKey.trim() || undefined);
   }
 </script>
 
@@ -62,7 +63,15 @@
       <input type="checkbox" bind:checked={asHost} />
       Join as host
     </label>
-    <button type="submit" disabled={!roomCode.trim() || !name.trim()}>Join</button>
+    {#if asHost}
+      <input placeholder="Host code" bind:value={hostKey} />
+    {/if}
+    <button
+      type="submit"
+      disabled={!roomCode.trim() || !name.trim() || (asHost && !hostKey.trim())}
+    >
+      Join
+    </button>
   </form>
 {:else if arcade.results}
   <section class="results">
