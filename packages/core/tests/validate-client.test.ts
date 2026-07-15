@@ -6,6 +6,7 @@ import {
   roomCreate,
   roomJoin,
   roomLeave,
+  roomRejoin,
   validateClient,
 } from "../src/index.js";
 
@@ -17,6 +18,18 @@ describe("validateClient", () => {
       validateClient(roomJoin({ roomCode: "ABCD", name: "Grace", asHost: true })).ok,
     ).toBe(true);
     expect(validateClient(roomLeave()).ok).toBe(true);
+    expect(
+      validateClient(
+        roomRejoin({ roomCode: "ABCD", participantId: "p_1", resumeToken: "t_1" }),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it("rejects room:rejoin missing the token", () => {
+    const msg = roomRejoin({ roomCode: "ABCD", participantId: "p_1", resumeToken: "t_1" });
+    expect(
+      validateClient({ ...msg, payload: { roomCode: "ABCD", participantId: "p_1" } }),
+    ).toEqual({ ok: false, error: "room:rejoin.resumeToken must be string" });
   });
 
   it("returns the typed message on success", () => {
