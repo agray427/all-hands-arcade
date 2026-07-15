@@ -8,6 +8,9 @@ build/
 .turbo/
 *.tsbuildinfo
 
+# Generated
+packages/core/src/protocol/generated.ts
+
 # Env
 .env
 .env.*
