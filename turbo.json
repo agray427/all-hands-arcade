@@ -16,6 +16,9 @@
     "check": {
       "dependsOn": ["gen", "^build"]
     },
+    "test": {
+      "dependsOn": ["gen", "^build"]
+    },
     "lint": {},
     "clean": {
       "cache": false

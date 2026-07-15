@@ -13,10 +13,12 @@
   "scripts": {
     "gen": "tsx scripts/gen-protocol.ts",
     "check": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run"
   },
   "devDependencies": {
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }
