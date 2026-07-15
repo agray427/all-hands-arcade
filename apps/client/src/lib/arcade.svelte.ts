@@ -101,6 +101,7 @@ export class ArcadeClient {
       ) {
         this.myChoice = null;
       }
+      if (view.you && view.you.choice !== null) this.myChoice = view.you.choice;
       this.game = { gameId: payload.gameId, view };
     });
     this.socket.on("room:closed", (payload) => {

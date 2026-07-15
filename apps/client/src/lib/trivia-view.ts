@@ -16,4 +16,10 @@ export interface TriviaView {
   correctIndex?: number;
   outcomes?: Record<string, "correct" | "wrong" | "timeout">;
   leaderboard?: GameResults;
+  you?: {
+    choice: number | null;
+    outcome: "correct" | "wrong" | "timeout" | null;
+    score: number;
+    eliminatedRound: number | null;
+  } | null;
 }

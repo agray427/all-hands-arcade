@@ -122,6 +122,59 @@ describe("ArcadeClient games", () => {
     expect(client.results).toEqual(results);
   });
 
+  it("restores a locked answer from a personal view", () => {
+    const client = new ArcadeClient();
+    stub.receive(gameStarted({ gameId: "trivia", variantId: "classic", config: {} }, "all"));
+    stub.receive(
+      gameState(
+        {
+          gameId: "trivia",
+          view: {
+            ...questionView(1),
+            you: { choice: 3, outcome: null, score: 0, eliminatedRound: null },
+          },
+        },
+        "self",
+      ),
+    );
+    expect(client.myChoice).toBe(3);
+
+    client.submitAnswer(1);
+    expect(client.myChoice).toBe(3);
+  });
+
+  it("keeps an optimistic pick when the personal view has no choice yet", () => {
+    const client = new ArcadeClient();
+    stub.receive(gameStarted({ gameId: "trivia", variantId: "classic", config: {} }, "all"));
+    stub.receive(
+      gameState(
+        {
+          gameId: "trivia",
+          view: {
+            ...questionView(1),
+            you: { choice: null, outcome: null, score: 0, eliminatedRound: null },
+          },
+        },
+        "self",
+      ),
+    );
+    client.submitAnswer(2);
+    stub.receive(
+      gameState(
+        {
+          gameId: "trivia",
+          view: {
+            ...questionView(1),
+            answered: ["p1"],
+            you: { choice: null, outcome: null, score: 0, eliminatedRound: null },
+          },
+        },
+        "self",
+      ),
+    );
+    expect(client.myChoice).toBe(2);
+  });
+
   it("exposes the host key from a host welcome and clears it on leave", () => {
     const client = new ArcadeClient();
     stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1", hostKey: "h_1" }, "self"));
