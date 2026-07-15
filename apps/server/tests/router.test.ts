@@ -64,15 +64,43 @@ describe("handle room:join", () => {
     expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
   });
 
-  it("honors asHost", () => {
+  it("honors asHost when the host key matches", () => {
+    const store = new RoomStore();
+    const { view, hostKey } = store.create("Ada");
+    const result = handle(
+      store,
+      emptyCtx(),
+      roomJoin({ roomCode: view.code, name: "Grace", asHost: true, hostKey }),
+    );
+    expect(result.identity!.role).toBe("host");
+    const welcome = result.outbound[0]!.message.payload as { hostKey?: string };
+    expect(welcome.hostKey).toBe(hostKey);
+  });
+
+  it("rejects asHost with a missing or wrong host key", () => {
+    const store = new RoomStore();
+    const { view } = store.create("Ada");
+
+    for (const hostKey of [undefined, "h_forged"]) {
+      const msg = roomJoin({ roomCode: view.code, name: "Grace", asHost: true, hostKey });
+      const result = handle(store, emptyCtx(), msg);
+      expect(result.identity).toBeUndefined();
+      expect(errorPayload(result.outbound[0]!.message).code).toBe("NOT_ALLOWED");
+      expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
+    }
+    expect(Object.keys(store.get(view.code)!.participants)).toHaveLength(1);
+  });
+
+  it("never includes a host key in player welcomes", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
     const result = handle(
       store,
       emptyCtx(),
-      roomJoin({ roomCode: view.code, name: "Grace", asHost: true }),
+      roomJoin({ roomCode: view.code, name: "Grace" }),
     );
-    expect(result.identity!.role).toBe("host");
+    const welcome = result.outbound[0]!.message.payload as { hostKey?: string };
+    expect(welcome.hostKey).toBeUndefined();
   });
 
   it("fails with ROOM_NOT_FOUND for an unknown code", () => {

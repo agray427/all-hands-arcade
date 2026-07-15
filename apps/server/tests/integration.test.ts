@@ -187,6 +187,38 @@ describe("arcade server integration", () => {
     expect(participant!.name).toBe("Grace");
   });
 
+  it("joining as host requires the host key issued to the creator", async () => {
+    const host = await connect();
+    const welcome = await createRoom(host);
+    expect(welcome.hostKey).toMatch(/^h_/);
+
+    const intruder = await connect();
+    const forged = roomJoin({
+      roomCode: welcome.room.code,
+      name: "Mallory",
+      asHost: true,
+      hostKey: "h_forged",
+    });
+    intruder.socket.emit("message:incoming", forged);
+    const error = await intruder.waitFor((m) => m.type === "engine:error");
+    expect(error.replyTo).toBe(forged.messageId);
+    expect((error.payload as EngineErrorPayload).code).toBe("NOT_ALLOWED");
+
+    const cohost = await connect();
+    const msg = roomJoin({
+      roomCode: welcome.room.code,
+      name: "Hedy",
+      asHost: true,
+      hostKey: welcome.hostKey,
+    });
+    cohost.socket.emit("message:incoming", msg);
+    const reply = await cohost.waitFor((m) => m.replyTo === msg.messageId);
+    expect(reply.type).toBe("room:welcome");
+    const payload = reply.payload as RoomWelcomePayload;
+    expect(payload.room.participants[payload.youId]!.role).toBe("host");
+    expect(payload.hostKey).toBe(welcome.hostKey);
+  });
+
   it("joining an unknown room returns ROOM_NOT_FOUND", async () => {
     const player = await connect();
     const msg = roomJoin({ roomCode: "ZZZZ", name: "Grace" });

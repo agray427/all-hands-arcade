@@ -76,14 +76,14 @@ export function handle(
 
   switch (msg.type) {
     case "room:create": {
-      const { view, host, resumeToken } = store.create(msg.payload.hostName);
+      const { view, host, resumeToken, hostKey } = store.create(msg.payload.hostName);
       return {
         identity: { participantId: host.id, roomCode: view.code, role: "host" },
         outbound: [
           {
             target: "self",
             message: roomWelcome(
-              { room: view, youId: host.id, resumeToken },
+              { room: view, youId: host.id, resumeToken, hostKey },
               "self",
               msg.messageId,
             ),
@@ -93,11 +93,20 @@ export function handle(
       };
     }
     case "room:join": {
-      const result = store.join(
-        msg.payload.roomCode,
-        msg.payload.name,
-        msg.payload.asHost ?? false,
-      );
+      const asHost = msg.payload.asHost ?? false;
+      if (asHost) {
+        if (!store.get(msg.payload.roomCode)) {
+          return fail("ROOM_NOT_FOUND", `no room: ${msg.payload.roomCode}`, msg.messageId);
+        }
+        if (msg.payload.hostKey !== store.hostKey(msg.payload.roomCode)) {
+          return fail(
+            "NOT_ALLOWED",
+            "a valid host key is required to join as host",
+            msg.messageId,
+          );
+        }
+      }
+      const result = store.join(msg.payload.roomCode, msg.payload.name, asHost);
       if (!result) {
         return fail("ROOM_NOT_FOUND", `no room: ${msg.payload.roomCode}`, msg.messageId);
       }
@@ -112,7 +121,12 @@ export function handle(
           {
             target: "self",
             message: roomWelcome(
-              { room: view, youId: participant.id, resumeToken },
+              {
+                room: view,
+                youId: participant.id,
+                resumeToken,
+                ...(asHost ? { hostKey: store.hostKey(view.code)! } : {}),
+              },
               "self",
               msg.messageId,
             ),
@@ -143,7 +157,14 @@ export function handle(
           {
             target: "self",
             message: roomWelcome(
-              { room: view, youId: participant.id, resumeToken },
+              {
+                room: view,
+                youId: participant.id,
+                resumeToken,
+                ...(participant.role === "host"
+                  ? { hostKey: store.hostKey(view.code)! }
+                  : {}),
+              },
               "self",
               msg.messageId,
             ),

@@ -127,6 +127,16 @@ describe("RoomStore", () => {
     expect(store.rejoin(view.code, participant.id, resumeToken)).toBeNull();
   });
 
+  it("issues a host key on create, keeps it out of views, and clears it with the room", () => {
+    const store = new RoomStore();
+    const { view, hostKey } = store.create("Ada");
+    expect(hostKey).toMatch(/^h_/);
+    expect(store.hostKey(view.code)).toBe(hostKey);
+    expect(JSON.stringify(store.get(view.code))).not.toContain(hostKey);
+    store.removeRoom(view.code);
+    expect(store.hostKey(view.code)).toBeNull();
+  });
+
   it("removeRoom deletes the room and invalidates its tokens", () => {
     const store = new RoomStore();
     const { view, host, resumeToken } = store.create("Ada");
