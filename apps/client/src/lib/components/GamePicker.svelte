@@ -35,10 +35,18 @@
     return inputs[name] ?? String(field.default ?? "");
   }
 
+  function visible(field: ConfigField): boolean {
+    if (!field.when || !variant) return true;
+    const controlling = variant.configFields[field.when.field];
+    const current = inputs[field.when.field] ?? String(controlling?.default ?? "");
+    return current === String(field.when.equals);
+  }
+
   function start() {
     if (!game || !variant) return;
     const config: GameConfig = {};
     for (const [name, field] of Object.entries(variant.configFields)) {
+      if (!visible(field)) continue;
       const raw = String(inputs[name] ?? "").trim();
       if (raw === "") {
         if (field.options && field.default !== undefined) config[name] = field.default;
@@ -85,27 +93,34 @@
     <h2>Settings</h2>
     <div class="fields">
       {#each Object.entries(variant.configFields) as [name, field] (name)}
-        {#if field.options}
-          <label class="field">
-            <span>{field.label}</span>
-            <select bind:value={inputs[name]}>
-              {#each field.options as option (option.value)}
-                <option value={option.value} selected={option.value === fieldValue(name, field)}>
-                  {option.label}{option.description ? ` — ${option.description}` : ""}
-                </option>
-              {/each}
-            </select>
-          </label>
-        {:else if field.type === "number"}
-          <label class="field">
-            <span>{field.label}</span>
-            <input
-              type="number"
-              min={field.min}
-              placeholder={field.default !== undefined ? String(field.default) : "auto"}
-              bind:value={inputs[name]}
-            />
-          </label>
+        {#if visible(field)}
+          {#if field.options}
+            <label class="field">
+              <span>{field.label}</span>
+              <select bind:value={inputs[name]}>
+                {#each field.options as option (option.value)}
+                  <option value={option.value} selected={option.value === fieldValue(name, field)}>
+                    {option.label}{option.description ? ` — ${option.description}` : ""}
+                  </option>
+                {/each}
+              </select>
+            </label>
+          {:else if field.multiline}
+            <label class="field wide">
+              <span>{field.label}</span>
+              <textarea rows="6" bind:value={inputs[name]}></textarea>
+            </label>
+          {:else if field.type === "number"}
+            <label class="field">
+              <span>{field.label}</span>
+              <input
+                type="number"
+                min={field.min}
+                placeholder={field.default !== undefined ? String(field.default) : "auto"}
+                bind:value={inputs[name]}
+              />
+            </label>
+          {/if}
         {/if}
       {/each}
     </div>
@@ -169,12 +184,21 @@
     color: #9aa1b1;
   }
   input,
-  select {
+  select,
+  textarea {
     padding: 0.55rem 0.7rem;
     border-radius: 8px;
     border: 1px solid #2b3040;
     background: #12141c;
     color: #e5e8ef;
+  }
+  textarea {
+    font-family: monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+  }
+  .field.wide {
+    grid-column: 1 / -1;
   }
   .start {
     align-self: flex-start;

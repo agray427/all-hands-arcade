@@ -634,6 +634,43 @@ describe("arcade server integration", () => {
       expect(results[0]!.score).toBeGreaterThan(0);
     });
 
+    it("plays a custom deck over the wire and rejects a malformed one", async () => {
+      const { host, p1, p2, ids } = await setupGameRoom();
+
+      const bad = gameStart({
+        gameId: "trivia",
+        config: { deck: "custom", customDeck: "no choices here" },
+      });
+      host.socket.emit("message:incoming", bad);
+      const error = await host.waitFor((m) => m.replyTo === bad.messageId);
+      expect((error.payload as EngineErrorPayload).code).toBe("INVALID_CONFIG");
+      expect((error.payload as EngineErrorPayload).message).toContain("line 1");
+
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          config: {
+            deck: "custom",
+            customDeck: "Which door? | left | *right",
+            questionTimeMs: 30000,
+            revealTimeMs: 500,
+          },
+        }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question")));
+      expect(q1.question).toEqual({ prompt: "Which door?", choices: ["left", "right"] });
+      submitAnswer(p1, 1);
+      submitAnswer(p2, 0);
+
+      const ended = await host.waitFor((m) => m.type === "game:ended");
+      const results = (ended.payload as { results: GameResults }).results;
+      expect(results[0]!.participantId).toBe(ids.p1);
+      expect(results[0]!.score).toBeGreaterThan(0);
+      expect(results[1]!).toMatchObject({ participantId: ids.p2, score: 0 });
+    });
+
     it("plays a host-paced game driven entirely by host advances", async () => {
       const { host, p1, p2, ids } = await setupGameRoom();
       host.socket.emit(
