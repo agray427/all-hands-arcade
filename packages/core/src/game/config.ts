@@ -40,6 +40,7 @@ export function resolveConfig(
 
   const config: GameConfig = {};
   for (const [name, field] of Object.entries(variant.configFields)) {
+    if (field.when && config[field.when.field] !== field.when.equals) continue;
     const value = overrides[name] ?? field.default;
     if (value === undefined) continue;
     const error = checkField(name, field, value);

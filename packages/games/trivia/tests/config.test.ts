@@ -46,8 +46,9 @@ describe("trivia config", () => {
       "survival",
     ]);
     const classic = entry!.variants.find((v) => v.id === "classic")!;
-    expect(classic.configFields.deck!.options!.map((o) => o.value)).toEqual(
-      decks.map((d) => d.id),
-    );
+    expect(classic.configFields.deck!.options!.map((o) => o.value)).toEqual([
+      ...decks.map((d) => d.id),
+      "custom",
+    ]);
   });
 });

@@ -1,6 +1,6 @@
 import type { GameConfig, GameContext, GameEffect, Participant } from "@arcade/core";
 import { resolveConfig } from "@arcade/core";
-import { deckById, trivia } from "../src/index.js";
+import { trivia } from "../src/index.js";
 import type { TriviaState } from "../src/index.js";
 
 export class Clock {
@@ -58,10 +58,10 @@ export function fire(
 }
 
 export function correctChoice(state: TriviaState): number {
-  const deck = deckById(state.rules.deckId)!;
-  return deck.questions[state.order[state.round - 1]!]!.correctIndex;
+  return state.questions[state.order[state.round - 1]!]!.correctIndex;
 }
 
 export function wrongChoice(state: TriviaState): number {
-  return (correctChoice(state) + 1) % 4;
+  const question = state.questions[state.order[state.round - 1]!]!;
+  return (question.correctIndex + 1) % question.choices.length;
 }

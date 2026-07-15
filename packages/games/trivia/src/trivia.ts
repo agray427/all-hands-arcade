@@ -8,7 +8,8 @@ import type {
   GameResults,
   ReduceResult,
 } from "@arcade/core";
-import { deckById, decks } from "./decks.js";
+import { parseCustomDeck } from "./custom.js";
+import { deckById, decks, type TriviaQuestion } from "./decks.js";
 import {
   aliveContestants,
   questionTimeFor,
@@ -21,12 +22,41 @@ const deckField: ConfigField = {
   type: "string",
   label: "Deck",
   default: decks[0]!.id,
-  options: decks.map((d) => ({
-    value: d.id,
-    label: d.name,
-    description: `${d.questions.length} questions`,
-  })),
+  options: [
+    ...decks.map((d) => ({
+      value: d.id,
+      label: d.name,
+      description: `${d.questions.length} questions`,
+    })),
+    { value: "custom", label: "Custom deck", description: "bring your own questions" },
+  ],
 };
+
+const customDeckField: ConfigField = {
+  type: "string",
+  label: "Custom questions — one per line: Prompt? | choice | *correct | choice",
+  multiline: true,
+  when: { field: "deck", equals: "custom" },
+};
+
+function validateDeck(config: GameConfig): string | null {
+  if (config.deck !== "custom") return null;
+  const source = config.customDeck;
+  if (typeof source !== "string" || !source.trim()) {
+    return "customDeck is required when deck is custom";
+  }
+  const parsed = parseCustomDeck(source);
+  return parsed.ok ? null : parsed.error;
+}
+
+function resolveQuestions(config: GameConfig): TriviaQuestion[] {
+  if (config.deck === "custom") {
+    const parsed = parseCustomDeck(config.customDeck as string);
+    if (!parsed.ok) throw new Error(parsed.error);
+    return parsed.questions;
+  }
+  return deckById(config.deck as string)!.questions;
+}
 
 function shuffle(count: number, random: () => number): number[] {
   const order = Array.from({ length: count }, (_, i) => i);
@@ -137,8 +167,7 @@ function advance(state: TriviaState, ctx: GameContext): ReduceResult<TriviaState
 }
 
 export function currentQuestion(state: TriviaState) {
-  const deck = deckById(state.rules.deckId)!;
-  return deck.questions[state.order[state.round - 1]!]!;
+  return state.questions[state.order[state.round - 1]!]!;
 }
 
 function handleAnswer(
@@ -247,8 +276,10 @@ export const trivia: GameDefinition<TriviaState> = {
     classic: {
       name: "Classic",
       description: "Fast and accurate: everyone answers, quicker correct answers score more.",
+      validateConfig: validateDeck,
       configFields: {
         deck: deckField,
+        customDeck: customDeckField,
         rounds: { type: "number", label: "Rounds (default: deck size)", min: 1 },
         questionTimeMs: {
           type: "number",
@@ -264,8 +295,10 @@ export const trivia: GameDefinition<TriviaState> = {
       description:
         "No clocks. The host reveals answers and advances rounds whenever they're ready — perfect for commentary between questions.",
       hostDriven: true,
+      validateConfig: validateDeck,
       configFields: {
         deck: deckField,
+        customDeck: customDeckField,
         rounds: { type: "number", label: "Rounds (default: deck size)", min: 1 },
       },
     },
@@ -273,8 +306,10 @@ export const trivia: GameDefinition<TriviaState> = {
       name: "Survival",
       description:
         "Questions keep coming with less and less time. Answer wrong or too late and you're out.",
+      validateConfig: validateDeck,
       configFields: {
         deck: deckField,
+        customDeck: customDeckField,
         maxRounds: { type: "number", label: "Max rounds (default: deck size)", min: 1 },
         startTimeMs: {
           type: "number",
@@ -303,15 +338,16 @@ export const trivia: GameDefinition<TriviaState> = {
     "round:advance": {},
   },
   setup(variantId, config, ctx) {
-    const deck = deckById(config.deck as string)!;
-    const rules = buildRules(variantId as TriviaVariantId, config, deck.questions.length);
+    const questions = resolveQuestions(config);
+    const rules = buildRules(variantId as TriviaVariantId, config, questions.length);
     const contestants = ctx.players.map((p) => p.id);
     const names = Object.fromEntries(ctx.players.map((p) => [p.id, p.name]));
     const base: TriviaState = {
       rules,
       phase: "question",
       round: 0,
-      order: shuffle(deck.questions.length, ctx.random).slice(0, rules.rounds),
+      questions,
+      order: shuffle(questions.length, ctx.random).slice(0, rules.rounds),
       deadline: 0,
       answers: {},
       outcomes: {},
