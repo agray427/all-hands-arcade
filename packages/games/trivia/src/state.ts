@@ -1,4 +1,5 @@
 import type { ParticipantId } from "@arcade/core";
+import type { TriviaQuestion } from "./decks.js";
 
 export type TriviaVariantId = "classic" | "survival" | "host-paced";
 export type TriviaPhase = "question" | "reveal" | "ended";
@@ -19,6 +20,7 @@ export interface TriviaState {
   rules: TriviaRules;
   phase: TriviaPhase;
   round: number;
+  questions: TriviaQuestion[];
   order: number[];
   deadline: number;
   answers: Record<ParticipantId, { choice: number; at: number }>;

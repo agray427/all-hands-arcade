@@ -1,6 +1,6 @@
 export interface TriviaQuestion {
   prompt: string;
-  choices: [string, string, string, string];
+  choices: string[];
   correctIndex: number;
 }
 
