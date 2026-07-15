@@ -7,8 +7,7 @@
   "type": "module",
   "workspaces": [
     "apps/*",
-    "packages/core",
-    "packages/games/*"
+    "packages/core"
   ],
   "scripts": {
     "dev": "turbo run dev",
