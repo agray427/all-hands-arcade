@@ -4,6 +4,7 @@ import {
   gameEnded,
   gameStarted,
   gameState,
+  roomClosed,
   roomWelcome,
   type GameResults,
   type RoomView,
@@ -227,6 +228,31 @@ describe("ArcadeClient reconnection", () => {
 
     expect(await pending).toBe(false);
     expect(storage.has("arcade:session")).toBe(false);
+  });
+
+  it("room:closed clears state and session and surfaces the reason", () => {
+    const client = new ArcadeClient();
+    stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1" }, "self"));
+    stub.receive(gameStarted({ gameId: "trivia", variantId: "classic", config: {} }, "all"));
+    stub.receive(gameState({ gameId: "trivia", view: questionView(1) }, "all"));
+
+    stub.receive(roomClosed({ reason: "room closed after host inactivity" }, "all"));
+
+    expect(client.room).toBeNull();
+    expect(client.you).toBeNull();
+    expect(client.game).toBeNull();
+    expect(client.notice).toBe("room closed after host inactivity");
+    expect(storage.has("arcade:session")).toBe(false);
+  });
+
+  it("the next welcome clears the notice", () => {
+    const client = new ArcadeClient();
+    stub.receive(roomClosed({ reason: "room closed after host inactivity" }, "all"));
+    expect(client.notice).not.toBeNull();
+
+    stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1" }, "self"));
+    expect(client.notice).toBeNull();
+    expect(client.room?.code).toBe("ABCD");
   });
 
   it("tracks connection status and auto-rejoins when the socket comes back", async () => {

@@ -68,6 +68,7 @@ export class ArcadeClient {
   results = $state<GameResults | null>(null);
   myChoice = $state<number | null>(null);
   connected = $state(true);
+  notice = $state<string | null>(null);
 
   roster = $derived.by<Participant[]>(() =>
     this.room ? Object.values(this.room.participants) : [],
@@ -99,6 +100,15 @@ export class ArcadeClient {
         this.myChoice = null;
       }
       this.game = { gameId: payload.gameId, view };
+    });
+    this.socket.on("room:closed", (payload) => {
+      clearSession();
+      this.notice = payload.reason;
+      this.room = null;
+      this.you = null;
+      this.game = null;
+      this.results = null;
+      this.myChoice = null;
     });
     this.socket.on("game:ended", (payload) => {
       this.results = payload.results;
@@ -191,6 +201,7 @@ export class ArcadeClient {
   }
 
   private applyWelcome(payload: WelcomePayload): void {
+    this.notice = null;
     this.room = payload.room;
     this.you = payload.room.participants[payload.youId] ?? null;
     writeSession({

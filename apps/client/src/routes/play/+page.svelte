@@ -50,6 +50,10 @@
   <p class="reconnecting">Connection lost — reconnecting…</p>
 {/if}
 
+{#if !arcade.room && arcade.notice}
+  <p class="notice">{arcade.notice}</p>
+{/if}
+
 {#if !arcade.room}
   <form onsubmit={(e) => { e.preventDefault(); join(); }}>
     <input placeholder="Room code" bind:value={roomCode} style="text-transform: uppercase" />
@@ -301,6 +305,13 @@
     color: #facc15;
     border: 1px solid #4d4320;
     background: #221e0e;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+  }
+  .notice {
+    color: #93c5fd;
+    border: 1px solid #1e3a5f;
+    background: #0e1a2b;
     border-radius: 8px;
     padding: 0.5rem 0.75rem;
   }
