@@ -10,6 +10,13 @@ import {
   type ServerBroadcastEnvelope,
 } from "@arcade/core";
 
+const storage = new Map<string, string>();
+vi.stubGlobal("sessionStorage", {
+  getItem: (key: string) => storage.get(key) ?? null,
+  setItem: (key: string, value: string) => storage.set(key, value),
+  removeItem: (key: string) => storage.delete(key),
+});
+
 type OutgoingHandler = (message: ServerBroadcastEnvelope) => void;
 
 const stub = {
@@ -61,6 +68,7 @@ function questionView(round: number, phase = "question") {
 describe("ArcadeClient games", () => {
   beforeEach(() => {
     stub.reset();
+    storage.clear();
   });
 
   it("loads the catalog via request/reply", async () => {
@@ -133,11 +141,111 @@ describe("ArcadeClient games", () => {
 
   it("clears game state on leave", () => {
     const client = new ArcadeClient();
-    stub.receive(roomWelcome({ room, youId: "p1" }, "self"));
+    stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1" }, "self"));
     stub.receive(gameState({ gameId: "trivia", view: questionView(1) }, "players"));
     client.leave();
     expect(client.game).toBeNull();
     expect(client.results).toBeNull();
     expect(client.myChoice).toBeNull();
+  });
+});
+
+describe("ArcadeClient reconnection", () => {
+  beforeEach(() => {
+    stub.reset();
+    storage.clear();
+  });
+
+  it("persists the session on welcome and clears it on leave", () => {
+    const client = new ArcadeClient();
+    stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1" }, "self"));
+
+    expect(JSON.parse(storage.get("arcade:session")!)).toEqual({
+      roomCode: "ABCD",
+      participantId: "p1",
+      resumeToken: "t_1",
+    });
+
+    client.leave();
+    expect(storage.has("arcade:session")).toBe(false);
+  });
+
+  it("resume rejoins from the stored session and applies the welcome", async () => {
+    storage.set(
+      "arcade:session",
+      JSON.stringify({ roomCode: "ABCD", participantId: "p1", resumeToken: "t_1" }),
+    );
+    const client = new ArcadeClient();
+    const pending = client.resume();
+
+    const sent = stub.lastSent();
+    expect(sent.type).toBe("room:rejoin");
+    expect(sent.payload).toEqual({
+      roomCode: "ABCD",
+      participantId: "p1",
+      resumeToken: "t_1",
+    });
+
+    const withYou: RoomView = {
+      ...room,
+      participants: {
+        p1: { id: "p1", name: "Grace", role: "player", connected: true },
+      },
+    };
+    stub.receive({
+      ...roomWelcome({ room: withYou, youId: "p1", resumeToken: "t_1" }, "self"),
+      replyTo: sent.messageId,
+    });
+
+    expect(await pending).toBe(true);
+    expect(client.room?.code).toBe("ABCD");
+    expect(client.you?.name).toBe("Grace");
+  });
+
+  it("resume without a stored session does nothing", async () => {
+    const client = new ArcadeClient();
+    expect(await client.resume()).toBe(false);
+    expect(stub.emitted).toHaveLength(0);
+  });
+
+  it("a rejected resume clears the stale session", async () => {
+    storage.set(
+      "arcade:session",
+      JSON.stringify({ roomCode: "ABCD", participantId: "p1", resumeToken: "t_stale" }),
+    );
+    const client = new ArcadeClient();
+    const pending = client.resume();
+
+    const sent = stub.lastSent();
+    stub.receive(
+      engineError(
+        { code: "REJOIN_FAILED", message: "unknown room, participant, or token" },
+        "self",
+        sent.messageId,
+      ),
+    );
+
+    expect(await pending).toBe(false);
+    expect(storage.has("arcade:session")).toBe(false);
+  });
+
+  it("tracks connection status and auto-rejoins when the socket comes back", async () => {
+    const client = new ArcadeClient();
+    stub.receive(roomWelcome({ room, youId: "p1", resumeToken: "t_1" }, "self"));
+
+    (stub.handlers.get("disconnect") as unknown as () => void)();
+    expect(client.connected).toBe(false);
+
+    (stub.handlers.get("connect") as unknown as () => void)();
+    expect(client.connected).toBe(true);
+
+    await Promise.resolve();
+    const sent = stub.lastSent();
+    expect(sent.type).toBe("room:rejoin");
+    expect(sent.payload).toEqual({
+      roomCode: "ABCD",
+      participantId: "p1",
+      resumeToken: "t_1",
+    });
   });
 });

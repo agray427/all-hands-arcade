@@ -7,6 +7,7 @@ import {
   roomCreate,
   roomJoin,
   roomLeave,
+  roomRejoin,
   type GameCatalog,
   type GameConfig,
   type GameResults,
@@ -19,6 +20,38 @@ import type { TriviaView } from "./trivia-view.js";
 interface WelcomePayload {
   room: RoomView;
   youId: string;
+  resumeToken: string;
+}
+
+interface StoredSession {
+  roomCode: string;
+  participantId: string;
+  resumeToken: string;
+}
+
+const SESSION_KEY = "arcade:session";
+
+function readSession(): StoredSession | null {
+  if (typeof sessionStorage === "undefined") return null;
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as StoredSession;
+    if (parsed.roomCode && parsed.participantId && parsed.resumeToken) return parsed;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function writeSession(session: StoredSession): void {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+function clearSession(): void {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 export interface ActiveGame {
@@ -34,6 +67,7 @@ export class ArcadeClient {
   game = $state<ActiveGame | null>(null);
   results = $state<GameResults | null>(null);
   myChoice = $state<number | null>(null);
+  connected = $state(true);
 
   roster = $derived.by<Participant[]>(() =>
     this.room ? Object.values(this.room.participants) : [],
@@ -42,6 +76,9 @@ export class ArcadeClient {
   private socket = new ArcadeSocket();
 
   constructor() {
+    this.socket.on("room:welcome", (payload) => {
+      this.applyWelcome(payload as WelcomePayload);
+    });
     this.socket.on("room:state", (payload) => {
       this.room = payload.room;
       if (this.you) this.you = payload.room.participants[this.you.id] ?? this.you;
@@ -68,13 +105,35 @@ export class ArcadeClient {
       this.game = null;
       this.myChoice = null;
     });
+    this.socket.onStatus((connected) => {
+      this.connected = connected;
+      if (connected && this.room) void this.resume();
+    });
+    this.connected = this.socket.isConnected;
+  }
+
+  async resume(): Promise<boolean> {
+    const session = readSession();
+    if (!session) return false;
+    try {
+      await this.socket.request(
+        roomRejoin({
+          roomCode: session.roomCode,
+          participantId: session.participantId,
+          resumeToken: session.resumeToken,
+        }),
+      );
+      return true;
+    } catch {
+      clearSession();
+      return false;
+    }
   }
 
   async createRoom(hostName: string): Promise<void> {
     this.lastError = null;
     try {
-      const res = await this.socket.request(roomCreate({ hostName }));
-      this.applyWelcome(res.payload as WelcomePayload);
+      await this.socket.request(roomCreate({ hostName }));
     } catch (error) {
       this.captureError(error);
     }
@@ -83,14 +142,14 @@ export class ArcadeClient {
   async joinRoom(roomCode: string, name: string, asHost: boolean): Promise<void> {
     this.lastError = null;
     try {
-      const res = await this.socket.request(roomJoin({ roomCode, name, asHost }));
-      this.applyWelcome(res.payload as WelcomePayload);
+      await this.socket.request(roomJoin({ roomCode, name, asHost }));
     } catch (error) {
       this.captureError(error);
     }
   }
 
   leave(): void {
+    clearSession();
     this.socket.send(roomLeave());
     this.room = null;
     this.you = null;
@@ -134,6 +193,11 @@ export class ArcadeClient {
   private applyWelcome(payload: WelcomePayload): void {
     this.room = payload.room;
     this.you = payload.room.participants[payload.youId] ?? null;
+    writeSession({
+      roomCode: payload.room.code,
+      participantId: payload.youId,
+      resumeToken: payload.resumeToken,
+    });
   }
 
   private captureError(error: unknown): void {

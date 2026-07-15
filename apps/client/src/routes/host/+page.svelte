@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { ArcadeClient } from "$lib/arcade.svelte";
   import Countdown from "$lib/components/Countdown.svelte";
   import GamePicker from "$lib/components/GamePicker.svelte";
@@ -6,6 +7,10 @@
 
   const arcade = new ArcadeClient();
   let hostName = $state("");
+
+  onMount(() => {
+    void arcade.resume();
+  });
 
   const view = $derived(arcade.game?.view ?? null);
   const alive = $derived(
@@ -26,6 +31,10 @@
 
 {#if arcade.lastError}
   <p class="error">{arcade.lastError}</p>
+{/if}
+
+{#if arcade.room && !arcade.connected}
+  <p class="reconnecting">Connection lost — reconnecting…</p>
 {/if}
 
 {#if !arcade.room}
@@ -259,5 +268,12 @@
   }
   .error {
     color: #f87171;
+  }
+  .reconnecting {
+    color: #facc15;
+    border: 1px solid #4d4320;
+    background: #221e0e;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
   }
 </style>
