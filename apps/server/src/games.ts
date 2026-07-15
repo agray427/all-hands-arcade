@@ -21,9 +21,11 @@ import {
 } from "@arcade/core";
 import type { ConnectionContext } from "./router.js";
 
+export type GameTarget = TargetAudience | { participantId: string };
+
 export type GameEmitter = (
   roomCode: string,
-  target: TargetAudience,
+  target: GameTarget,
   message: ServerBroadcastEnvelope,
 ) => void;
 
@@ -50,6 +52,7 @@ export class GameCoordinator {
     definitions: AnyGameDefinition[],
     private emit: GameEmitter,
     private onDispose?: (roomCode: string) => void,
+    private roster?: (roomCode: string) => Participant[],
   ) {
     this.registry = new Map(definitions.map((d) => [d.id, d]));
   }
@@ -72,7 +75,6 @@ export class GameCoordinator {
     if (!ctx.roomCode || !ctx.role) return [];
     const session = this.sessions.get(ctx.roomCode);
     if (!session) return [];
-    const audience: GameAudience = ctx.role === "host" ? "host" : "player";
     return [
       gameStarted(
         {
@@ -85,7 +87,7 @@ export class GameCoordinator {
       gameState(
         {
           gameId: session.definition.id,
-          view: session.definition.view(session.state, audience),
+          view: this.viewFor(session, ctx.role === "host" ? "host" : "player", ctx.participantId),
         },
         "self",
       ),
@@ -241,19 +243,45 @@ export class GameCoordinator {
     if (ended) this.finish(roomCode, session);
   }
 
+  private viewFor(
+    session: GameSession,
+    audience: GameAudience,
+    participantId?: string | null,
+  ): unknown {
+    if (audience === "player" && participantId && session.definition.playerView) {
+      return session.definition.playerView(session.state, participantId);
+    }
+    return session.definition.view(session.state, audience);
+  }
+
   private broadcastState(roomCode: string, session: GameSession): void {
-    const send = (audience: GameAudience, target: TargetAudience) => {
-      this.emit(
-        roomCode,
-        target,
-        gameState(
-          { gameId: session.definition.id, view: session.definition.view(session.state, audience) },
-          target,
-        ),
-      );
-    };
-    send("host", "host");
-    send("player", "players");
+    const { definition } = session;
+    this.emit(
+      roomCode,
+      "host",
+      gameState({ gameId: definition.id, view: definition.view(session.state, "host") }, "host"),
+    );
+    if (definition.playerView && this.roster) {
+      for (const participant of this.roster(roomCode)) {
+        this.emit(
+          roomCode,
+          { participantId: participant.id },
+          gameState(
+            { gameId: definition.id, view: definition.playerView(session.state, participant.id) },
+            "self",
+          ),
+        );
+      }
+      return;
+    }
+    this.emit(
+      roomCode,
+      "players",
+      gameState(
+        { gameId: definition.id, view: definition.view(session.state, "player") },
+        "players",
+      ),
+    );
   }
 
   private finish(roomCode: string, session: GameSession): void {

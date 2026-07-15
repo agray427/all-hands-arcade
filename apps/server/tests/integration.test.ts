@@ -428,6 +428,13 @@ describe("arcade server integration", () => {
       correctIndex?: number;
       outcomes?: Record<string, string>;
       question: { prompt: string; choices: string[] };
+      answered?: string[];
+      you?: {
+        choice: number | null;
+        outcome: string | null;
+        score: number;
+        eliminatedRound: number | null;
+      } | null;
     };
 
     const viewOf = (m: ServerBroadcastEnvelope): View =>
@@ -632,6 +639,99 @@ describe("arcade server integration", () => {
       expect(results[0]!.participantId).toBe(w1.youId);
       expect(results[0]!.rank).toBe(1);
       expect(results[0]!.score).toBeGreaterThan(0);
+    });
+
+    it("echoes each player's own answer only to them", async () => {
+      const { host, p1, p2, ids } = await setupGameRoom();
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          config: { rounds: 2, questionTimeMs: 30000, revealTimeMs: 500 },
+        }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+      expect(q1.you).toEqual({ choice: null, outcome: null, score: 0, eliminatedRound: null });
+
+      const right = correctFor(q1);
+      submitAnswer(p1, right);
+
+      const mine = viewOf(
+        await p1.waitFor(stateWith((v) => v.phase === "question" && v.you?.choice !== null)),
+      );
+      expect(mine.you!.choice).toBe(right);
+
+      const theirs = viewOf(
+        await p2.waitFor(stateWith((v) => v.phase === "question" && !!v.answered?.includes(ids.p1))),
+      );
+      expect(theirs.you!.choice).toBeNull();
+      expect(JSON.stringify(theirs)).not.toContain(`"choice":${right}`);
+
+      const hostQuestion = viewOf(
+        await host.waitFor(stateWith((v) => v.phase === "question" && !!v.answered?.includes(ids.p1))),
+      );
+      expect(JSON.stringify(hostQuestion)).not.toContain('"choice":');
+    });
+
+    it("restores a player's locked answer when they rejoin mid-question", async () => {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const p1 = await connect();
+      const w1 = await joinRoom(p1, room.code, "Grace");
+      const p2 = await connect();
+      await joinRoom(p2, room.code, "Hedy");
+
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          config: { rounds: 1, questionTimeMs: 30000, revealTimeMs: 500 },
+        }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+      const right = correctFor(q1);
+      submitAnswer(p1, right);
+      await p1.waitFor(stateWith((v) => v.you?.choice === right));
+      p1.socket.disconnect();
+
+      const revived = await connect();
+      revived.socket.emit(
+        "message:incoming",
+        roomRejoin({
+          roomCode: room.code,
+          participantId: w1.youId,
+          resumeToken: w1.resumeToken,
+        }),
+      );
+
+      const snapshot = viewOf(
+        await revived.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)),
+      );
+      expect(snapshot.you!.choice).toBe(right);
+      expect(snapshot.correctIndex).toBeUndefined();
+    });
+
+    it("sends a late joiner spectator views with you: null", async () => {
+      const { host, p1 } = await setupGameRoom();
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          config: { rounds: 1, questionTimeMs: 30000, revealTimeMs: 500 },
+        }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+
+      const late = await connect();
+      const room = (host.messages[0]!.payload as RoomWelcomePayload).room;
+      await joinRoom(late, room.code, "Late");
+
+      submitAnswer(p1, correctFor(q1));
+      const spectator = viewOf(await late.waitFor((m) => m.type === "game:state"));
+      expect(spectator.you).toBeNull();
     });
 
     it("plays a custom deck over the wire and rejects a malformed one", async () => {

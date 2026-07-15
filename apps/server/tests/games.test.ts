@@ -7,12 +7,12 @@ import {
   type TargetAudience,
 } from "@arcade/core";
 import { decks, trivia } from "@arcade/trivia";
-import { GameCoordinator } from "../src/games.js";
+import { GameCoordinator, type GameTarget } from "../src/games.js";
 import type { ConnectionContext } from "../src/router.js";
 
 interface Emitted {
   roomCode: string;
-  target: TargetAudience;
+  target: GameTarget;
   message: ServerBroadcastEnvelope;
 }
 
@@ -259,6 +259,70 @@ describe("GameCoordinator", () => {
       const forHost = games.resume(hostCtx());
       const hostView = (forHost[1]!.payload as { view: Record<string, unknown> }).view;
       expect(hostView).toEqual(stateViews("host").at(-1));
+    });
+  });
+
+  describe("per-player views", () => {
+    const forParticipant = (id: string) =>
+      emitted
+        .filter(
+          (e) =>
+            e.message.type === "game:state" &&
+            typeof e.target === "object" &&
+            e.target.participantId === id,
+        )
+        .map((e) => (e.message.payload as { view: unknown }).view as Record<string, unknown>);
+
+    let roster: Participant[];
+
+    beforeEach(() => {
+      emitted = [];
+      roster = players(2);
+      games = new GameCoordinator(
+        [trivia],
+        (roomCode, target, message) => {
+          emitted.push({ roomCode, target, message });
+        },
+        undefined,
+        () => roster,
+      );
+    });
+
+    it("emits one view per player from the roster instead of a group broadcast", () => {
+      games.start(hostCtx(), { gameId: "trivia" }, roster);
+      expect(stateViews("players")).toHaveLength(0);
+      expect(forParticipant("p1")).toHaveLength(1);
+      expect(forParticipant("p2")).toHaveLength(1);
+      expect(stateViews("host")).toHaveLength(1);
+    });
+
+    it("keeps each player's choice out of everyone else's question-phase view", () => {
+      games.start(hostCtx(), { gameId: "trivia" }, roster);
+      games.message(playerCtx("p1"), answerMsg(2));
+
+      const p1 = forParticipant("p1").at(-1)! as { you: { choice: number | null } };
+      const p2 = forParticipant("p2").at(-1)! as { you: { choice: number | null } };
+      expect(p1.you.choice).toBe(2);
+      expect(p2.you.choice).toBeNull();
+      expect(JSON.stringify(p2)).not.toContain('"p1":{"choice"');
+    });
+
+    it("sends late joiners in the roster a spectator view with you: null", () => {
+      games.start(hostCtx(), { gameId: "trivia" }, roster);
+      roster = [...roster, { id: "p3", name: "Late", role: "player", connected: true }];
+      games.message(playerCtx("p1"), answerMsg(0));
+
+      const late = forParticipant("p3").at(-1)!;
+      expect(late.you).toBeNull();
+    });
+
+    it("resumes a player with their personal view", () => {
+      games.start(hostCtx(), { gameId: "trivia" }, roster);
+      games.message(playerCtx("p1"), answerMsg(1));
+
+      const replies = games.resume(playerCtx("p1"));
+      const view = (replies[1]!.payload as { view: { you: { choice: number } } }).view;
+      expect(view.you.choice).toBe(1);
     });
   });
 

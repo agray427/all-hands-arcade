@@ -72,11 +72,18 @@ export async function createArcadeServer(
     cors: { origin: options.clientOrigin },
   });
 
+  const owners = new Map<string, string>();
+
   const broadcast = (
     code: string,
-    target: TargetAudience,
+    target: TargetAudience | { participantId: string },
     message: ServerBroadcastEnvelope,
   ) => {
+    if (typeof target === "object") {
+      const socketId = owners.get(target.participantId);
+      if (socketId) io.to(socketId).emit("message:outgoing", message);
+      return;
+    }
     switch (target) {
       case "all":
         io.to(code).emit("message:outgoing", message);
@@ -92,17 +99,18 @@ export async function createArcadeServer(
     }
   };
 
-  const games = new GameCoordinator(options.games ?? defaultGames, broadcast, (code) =>
-    janitor.check(code),
-  );
-
   const playersOf = (code: string): Participant[] => {
     const view = store.get(code);
     if (!view) return [];
     return Object.values(view.participants).filter((p) => p.role === "player");
   };
 
-  const owners = new Map<string, string>();
+  const games = new GameCoordinator(
+    options.games ?? defaultGames,
+    broadcast,
+    (code) => janitor.check(code),
+    playersOf,
+  );
 
   const expire = (code: string) => {
     broadcast(code, "all", roomClosed({ reason: "room closed after host inactivity" }, "all"));
