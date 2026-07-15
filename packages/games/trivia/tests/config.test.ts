@@ -40,7 +40,11 @@ describe("trivia config", () => {
   it("exposes both variants and deck options in the catalog", () => {
     const [entry] = toCatalog([trivia]);
     expect(entry!.defaultVariant).toBe("classic");
-    expect(entry!.variants.map((v) => v.id).sort()).toEqual(["classic", "survival"]);
+    expect(entry!.variants.map((v) => v.id).sort()).toEqual([
+      "classic",
+      "host-paced",
+      "survival",
+    ]);
     const classic = entry!.variants.find((v) => v.id === "classic")!;
     expect(classic.configFields.deck!.options!.map((o) => o.value)).toEqual(
       decks.map((d) => d.id),

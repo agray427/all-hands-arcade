@@ -1,6 +1,6 @@
 import type { ParticipantId } from "@arcade/core";
 
-export type TriviaVariantId = "classic" | "survival";
+export type TriviaVariantId = "classic" | "survival" | "host-paced";
 export type TriviaPhase = "question" | "reveal" | "ended";
 export type AnswerOutcome = "correct" | "wrong" | "timeout";
 
@@ -30,6 +30,7 @@ export interface TriviaState {
 }
 
 export function questionTimeFor(rules: TriviaRules, round: number): number {
+  if (rules.variant === "host-paced") return 0;
   if (rules.variant === "classic") return rules.questionTimeMs;
   return Math.max(rules.minTimeMs, rules.startTimeMs - (round - 1) * rules.stepMs);
 }

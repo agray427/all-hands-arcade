@@ -61,16 +61,17 @@ function revealTimer(round: number): string {
 
 function beginRound(state: TriviaState, round: number, now: number): ReduceResult<TriviaState> {
   const timeMs = questionTimeFor(state.rules, round);
+  const paced = state.rules.variant === "host-paced";
   return {
     state: {
       ...state,
       phase: "question",
       round,
-      deadline: now + timeMs,
+      deadline: paced ? 0 : now + timeMs,
       answers: {},
       outcomes: {},
     },
-    effects: [{ kind: "schedule", id: roundTimer(round), delayMs: timeMs }],
+    effects: paced ? [] : [{ kind: "schedule", id: roundTimer(round), delayMs: timeMs }],
   };
 }
 
@@ -94,6 +95,8 @@ function toReveal(state: TriviaState, cancelRoundTimer: boolean): ReduceResult<T
       if (rules.variant === "classic") {
         const remaining = Math.max(0, state.deadline - answer.at);
         scores[id] = (scores[id] ?? 0) + 100 + Math.round((400 * remaining) / totalMs);
+      } else if (rules.variant === "host-paced") {
+        scores[id] = (scores[id] ?? 0) + 100;
       } else {
         scores[id] = (scores[id] ?? 0) + 1;
       }
@@ -105,11 +108,13 @@ function toReveal(state: TriviaState, cancelRoundTimer: boolean): ReduceResult<T
 
   const effects: GameEffect[] = [];
   if (cancelRoundTimer) effects.push({ kind: "cancel", id: roundTimer(state.round) });
-  effects.push({
-    kind: "schedule",
-    id: revealTimer(state.round),
-    delayMs: rules.revealTimeMs,
-  });
+  if (rules.variant !== "host-paced") {
+    effects.push({
+      kind: "schedule",
+      id: revealTimer(state.round),
+      delayMs: rules.revealTimeMs,
+    });
+  }
 
   return {
     state: { ...state, phase: "reveal", scores, eliminatedAt, outcomes },
@@ -159,8 +164,19 @@ function handleAnswer(
   const next = { ...state, answers };
 
   const allAnswered = aliveContestants(next).every((id) => answers[id] !== undefined);
-  if (allAnswered) return toReveal(next, true);
+  if (allAnswered && state.rules.variant !== "host-paced") return toReveal(next, true);
   return { state: next };
+}
+
+function handleAdvance(
+  state: TriviaState,
+  event: Extract<GameEvent, { kind: "message" }>,
+  ctx: GameContext,
+): ReduceResult<TriviaState> {
+  if (state.rules.variant !== "host-paced") return { state };
+  if (event.role !== "host") return { state };
+  if (state.phase === "question") return toReveal(state, false);
+  return advance(state, ctx);
 }
 
 function reduce(
@@ -173,6 +189,7 @@ function reduce(
   switch (event.kind) {
     case "message":
       if (event.type === "answer:submit") return handleAnswer(state, event, ctx);
+      if (event.type === "round:advance") return handleAdvance(state, event, ctx);
       return { state };
     case "timer":
       if (event.id === roundTimer(state.round) && state.phase === "question") {
@@ -242,6 +259,16 @@ export const trivia: GameDefinition<TriviaState> = {
         revealTimeMs: { type: "number", label: "Reveal time (ms)", default: 4000, min: 500 },
       },
     },
+    "host-paced": {
+      name: "Host-paced",
+      description:
+        "No clocks. The host reveals answers and advances rounds whenever they're ready — perfect for commentary between questions.",
+      hostDriven: true,
+      configFields: {
+        deck: deckField,
+        rounds: { type: "number", label: "Rounds (default: deck size)", min: 1 },
+      },
+    },
     survival: {
       name: "Survival",
       description:
@@ -273,6 +300,7 @@ export const trivia: GameDefinition<TriviaState> = {
   },
   messages: {
     "answer:submit": { choice: "number" },
+    "round:advance": {},
   },
   setup(variantId, config, ctx) {
     const deck = deckById(config.deck as string)!;
