@@ -266,6 +266,46 @@ function results(state: TriviaState): GameResults {
   }));
 }
 
+function view(state: TriviaState, audience: "host" | "player") {
+  const question = currentQuestion(state);
+  const common = {
+    variant: state.rules.variant,
+    phase: state.phase,
+    round: state.round,
+    totalRounds: state.rules.rounds,
+    deadline: state.deadline,
+    timeMs: questionTimeFor(state.rules, state.round),
+    question: { prompt: question.prompt, choices: question.choices },
+    answered: Object.keys(state.answers),
+    contestants: state.contestants,
+    names: state.names,
+    scores: state.scores,
+    eliminatedAt: state.eliminatedAt,
+    audience,
+  };
+  if (state.phase === "question") return common;
+  return {
+    ...common,
+    correctIndex: question.correctIndex,
+    outcomes: state.outcomes,
+    ...(state.phase === "ended" ? { leaderboard: results(state) } : {}),
+  };
+}
+
+function playerView(state: TriviaState, participantId: string) {
+  const base = view(state, "player");
+  if (!state.contestants.includes(participantId)) return { ...base, you: null };
+  return {
+    ...base,
+    you: {
+      choice: state.answers[participantId]?.choice ?? null,
+      outcome: state.outcomes[participantId] ?? null,
+      score: state.scores[participantId] ?? 0,
+      eliminatedRound: state.eliminatedAt[participantId] ?? null,
+    },
+  };
+}
+
 export const trivia: GameDefinition<TriviaState> = {
   id: "trivia",
   name: "Trivia",
@@ -359,30 +399,7 @@ export const trivia: GameDefinition<TriviaState> = {
     return beginRound(base, 1, ctx.now());
   },
   reduce,
-  view(state, audience) {
-    const question = currentQuestion(state);
-    const common = {
-      variant: state.rules.variant,
-      phase: state.phase,
-      round: state.round,
-      totalRounds: state.rules.rounds,
-      deadline: state.deadline,
-      timeMs: questionTimeFor(state.rules, state.round),
-      question: { prompt: question.prompt, choices: question.choices },
-      answered: Object.keys(state.answers),
-      contestants: state.contestants,
-      names: state.names,
-      scores: state.scores,
-      eliminatedAt: state.eliminatedAt,
-      audience,
-    };
-    if (state.phase === "question") return common;
-    return {
-      ...common,
-      correctIndex: question.correctIndex,
-      outcomes: state.outcomes,
-      ...(state.phase === "ended" ? { leaderboard: results(state) } : {}),
-    };
-  },
+  view,
+  playerView,
   results,
 };
