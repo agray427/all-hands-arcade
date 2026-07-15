@@ -62,6 +62,12 @@ export class GameCoordinator {
     return this.sessions.has(roomCode);
   }
 
+  sessionNeedsHost(roomCode: string): boolean {
+    const session = this.sessions.get(roomCode);
+    if (!session) return false;
+    return session.definition.variants[session.variantId]?.hostDriven === true;
+  }
+
   resume(ctx: ConnectionContext): SelfReplies {
     if (!ctx.roomCode || !ctx.role) return [];
     const session = this.sessions.get(ctx.roomCode);

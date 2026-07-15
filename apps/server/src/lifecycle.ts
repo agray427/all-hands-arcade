@@ -2,6 +2,7 @@ import type { RoomStore } from "./rooms.js";
 
 export interface SessionSource {
   hasSession(roomCode: string): boolean;
+  sessionNeedsHost(roomCode: string): boolean;
 }
 
 export class RoomJanitor {
@@ -33,7 +34,7 @@ export class RoomJanitor {
   private shouldExpire(code: string): boolean {
     const view = this.store.get(code);
     if (!view) return false;
-    if (this.games.hasSession(code)) return false;
+    if (this.games.hasSession(code) && !this.games.sessionNeedsHost(code)) return false;
     return !Object.values(view.participants).some(
       (p) => p.role === "host" && p.connected,
     );

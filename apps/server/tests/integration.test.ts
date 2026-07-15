@@ -337,6 +337,25 @@ describe("arcade server integration", () => {
       expect(revived.ofType("room:closed")).toHaveLength(0);
     });
 
+    it("expires a room mid-game when the game is host-driven and the host is gone", async () => {
+      const host = await connect();
+      const hostWelcome = await createRoom(host);
+      const p1 = await connect();
+      await joinRoom(p1, hostWelcome.room.code, "Grace");
+
+      host.socket.emit(
+        "message:incoming",
+        gameStart({ gameId: "trivia", variantId: "host-paced", config: { rounds: 2 } }),
+      );
+      await p1.waitFor((m) => m.type === "game:state");
+
+      host.socket.disconnect();
+
+      await p1.waitFor((m) => m.type === "room:closed");
+      expect(server.store.get(hostWelcome.room.code)).toBeNull();
+      expect(server.games.hasSession(hostWelcome.room.code)).toBe(false);
+    });
+
     it("never expires a room while a game is running", async () => {
       const host = await connect();
       const hostWelcome = await createRoom(host);
@@ -424,7 +443,11 @@ describe("arcade server integration", () => {
       expect(games).toHaveLength(1);
       expect(games[0]!.id).toBe("trivia");
       expect(games[0]!.defaultVariant).toBe("classic");
-      expect(games[0]!.variants.map((v) => v.id).sort()).toEqual(["classic", "survival"]);
+      expect(games[0]!.variants.map((v) => v.id).sort()).toEqual([
+        "classic",
+        "host-paced",
+        "survival",
+      ]);
     });
 
     it("plays a classic game end to end over sockets", async () => {
@@ -577,6 +600,42 @@ describe("arcade server integration", () => {
       expect(results[0]!.participantId).toBe(w1.youId);
       expect(results[0]!.rank).toBe(1);
       expect(results[0]!.score).toBeGreaterThan(0);
+    });
+
+    it("plays a host-paced game driven entirely by host advances", async () => {
+      const { host, p1, p2, ids } = await setupGameRoom();
+      host.socket.emit(
+        "message:incoming",
+        gameStart({ gameId: "trivia", variantId: "host-paced", config: { rounds: 1 } }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+      const right = correctFor(q1);
+      submitAnswer(p1, right);
+      submitAnswer(p2, right);
+
+      await host.waitFor(
+        stateWith((v) => v.phase === "question" && v.round === 1),
+      );
+      await settle();
+      expect(host.messages.filter((m) => m.type === "game:state").every((m) => viewOf(m).phase === "question")).toBe(true);
+
+      p2.socket.emit(
+        "message:incoming",
+        envelope("round:advance", {}, { gameId: "trivia" }),
+      );
+      await settle();
+      expect(host.messages.some((m) => m.type === "game:state" && viewOf(m).phase === "reveal")).toBe(false);
+
+      host.socket.emit("message:incoming", envelope("round:advance", {}, { gameId: "trivia" }));
+      const reveal = viewOf(await host.waitFor(stateWith((v) => v.phase === "reveal")));
+      expect(reveal.correctIndex).toBe(right);
+
+      host.socket.emit("message:incoming", envelope("round:advance", {}, { gameId: "trivia" }));
+      const ended = await host.waitFor((m) => m.type === "game:ended");
+      const results = (ended.payload as { results: GameResults }).results;
+      expect(results.map((r) => r.score)).toEqual([100, 100]);
+      expect(results.map((r) => r.participantId).sort()).toEqual([ids.p1, ids.p2].sort());
     });
 
     it("rejects game:start from players", async () => {

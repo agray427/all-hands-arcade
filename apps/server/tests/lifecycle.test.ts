@@ -7,6 +7,7 @@ const TTL = 1000;
 describe("RoomJanitor", () => {
   let store: RoomStore;
   let sessions: Set<string>;
+  let hostDriven: Set<string>;
   let expired: string[];
   let janitor: RoomJanitor;
 
@@ -14,10 +15,14 @@ describe("RoomJanitor", () => {
     vi.useFakeTimers();
     store = new RoomStore();
     sessions = new Set();
+    hostDriven = new Set();
     expired = [];
     janitor = new RoomJanitor(
       store,
-      { hasSession: (code) => sessions.has(code) },
+      {
+        hasSession: (code) => sessions.has(code),
+        sessionNeedsHost: (code) => hostDriven.has(code),
+      },
       TTL,
       (code) => expired.push(code),
     );
@@ -85,6 +90,26 @@ describe("RoomJanitor", () => {
     janitor.check(view.code);
     vi.advanceTimersByTime(TTL);
     expect(expired).toEqual([view.code]);
+  });
+
+  it("a host-driven session does not defer expiry when hosts are gone", () => {
+    const { view, host } = store.create("Ada");
+    store.join(view.code, "Grace", false);
+    sessions.add(view.code);
+    hostDriven.add(view.code);
+    store.setConnected(view.code, host.id, false);
+    janitor.check(view.code);
+    vi.advanceTimersByTime(TTL);
+    expect(expired).toEqual([view.code]);
+  });
+
+  it("a host-driven session with a connected host never expires", () => {
+    const { view } = store.create("Ada");
+    sessions.add(view.code);
+    hostDriven.add(view.code);
+    janitor.check(view.code);
+    vi.advanceTimersByTime(TTL * 3);
+    expect(expired).toEqual([]);
   });
 
   it("re-checks the condition when the timer fires", () => {
