@@ -32,7 +32,8 @@ export type GameEvent =
       role: Role;
       messageId: string;
     }
-  | { kind: "timer"; id: string };
+  | { kind: "timer"; id: string }
+  | { kind: "presence"; participantId: ParticipantId; connected: boolean };
 
 export type GameEffect =
   | { kind: "schedule"; id: string; delayMs: number }
