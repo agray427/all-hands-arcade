@@ -201,6 +201,17 @@ export class GameCoordinator {
     return [];
   }
 
+  presence(roomCode: string, participantId: string, connected: boolean): void {
+    const session = this.sessions.get(roomCode);
+    if (!session) return;
+    const result = session.definition.reduce(
+      session.state,
+      { kind: "presence", participantId, connected },
+      session.ctx,
+    );
+    this.apply(roomCode, session, result);
+  }
+
   dispose(roomCode: string): void {
     const session = this.sessions.get(roomCode);
     if (!session) return;

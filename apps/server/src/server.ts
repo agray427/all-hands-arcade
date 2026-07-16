@@ -198,6 +198,7 @@ export async function createArcadeServer(
         socket.join(roomCode);
         socket.join(roleRoom(roomCode, role));
         janitor.check(roomCode);
+        games.presence(roomCode, participantId, true);
       }
 
       for (const out of result.outbound) emit(out);
@@ -217,12 +218,14 @@ export async function createArcadeServer(
 
       if (result.leave && socket.data.roomCode) {
         const code = socket.data.roomCode;
-        if (socket.data.participantId) owners.delete(socket.data.participantId);
+        const leaver = socket.data.participantId;
+        if (leaver) owners.delete(leaver);
         socket.leave(code);
         if (socket.data.role) socket.leave(roleRoom(code, socket.data.role));
         socket.data.participantId = null;
         socket.data.roomCode = null;
         socket.data.role = null;
+        if (leaver) games.presence(code, leaver, false);
         const view = store.get(code);
         if (!view || Object.keys(view.participants).length === 0) games.dispose(code);
         janitor.check(code);
@@ -237,6 +240,7 @@ export async function createArcadeServer(
       const view = store.setConnected(roomCode, participantId, false);
       if (view) io.to(roomCode).emit("message:outgoing", roomState({ room: view }, "all"));
       janitor.check(roomCode);
+      games.presence(roomCode, participantId, false);
     });
   });
 
