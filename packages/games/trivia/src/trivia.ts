@@ -116,7 +116,7 @@ function toReveal(state: TriviaState, cancelRoundTimer: boolean): ReduceResult<T
   for (const id of aliveContestants(state)) {
     const answer = state.answers[id];
     if (!answer) {
-      outcomes[id] = "timeout";
+      outcomes[id] = state.offline[id] ? "absent" : "timeout";
       if (rules.variant === "survival") eliminatedAt[id] = state.round;
       continue;
     }
@@ -208,6 +208,20 @@ function handleAdvance(
   return advance(state, ctx);
 }
 
+function handlePresence(
+  state: TriviaState,
+  event: Extract<GameEvent, { kind: "presence" }>,
+): ReduceResult<TriviaState> {
+  if (!state.contestants.includes(event.participantId)) return { state };
+  const offline = { ...state.offline };
+  if (event.connected) {
+    delete offline[event.participantId];
+  } else {
+    offline[event.participantId] = true;
+  }
+  return { state: { ...state, offline } };
+}
+
 function reduce(
   state: TriviaState,
   event: GameEvent,
@@ -216,6 +230,8 @@ function reduce(
   if (state.phase === "ended") return { state };
 
   switch (event.kind) {
+    case "presence":
+      return handlePresence(state, event);
     case "message":
       if (event.type === "answer:submit") return handleAnswer(state, event, ctx);
       if (event.type === "round:advance") return handleAdvance(state, event, ctx);
@@ -393,6 +409,9 @@ export const trivia: GameDefinition<TriviaState> = {
       outcomes: {},
       scores: Object.fromEntries(contestants.map((id) => [id, 0])),
       eliminatedAt: {},
+      offline: Object.fromEntries(
+        ctx.players.filter((p) => !p.connected).map((p) => [p.id, true as const]),
+      ),
       contestants,
       names,
     };

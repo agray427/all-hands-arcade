@@ -3,7 +3,7 @@ import type { TriviaQuestion } from "./decks.js";
 
 export type TriviaVariantId = "classic" | "survival" | "host-paced";
 export type TriviaPhase = "question" | "reveal" | "ended";
-export type AnswerOutcome = "correct" | "wrong" | "timeout";
+export type AnswerOutcome = "correct" | "wrong" | "timeout" | "absent";
 
 export interface TriviaRules {
   variant: TriviaVariantId;
@@ -27,6 +27,7 @@ export interface TriviaState {
   outcomes: Record<ParticipantId, AnswerOutcome>;
   scores: Record<ParticipantId, number>;
   eliminatedAt: Record<ParticipantId, number>;
+  offline: Record<ParticipantId, true>;
   contestants: ParticipantId[];
   names: Record<ParticipantId, string>;
 }

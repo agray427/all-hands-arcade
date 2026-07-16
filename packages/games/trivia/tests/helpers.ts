@@ -48,6 +48,16 @@ export function answer(
   return { state: result.state, effects: result.effects ?? [] };
 }
 
+export function presence(
+  state: TriviaState,
+  ctx: GameContext,
+  participantId: string,
+  connected: boolean,
+): { state: TriviaState; effects: GameEffect[] } {
+  const result = trivia.reduce(state, { kind: "presence", participantId, connected }, ctx);
+  return { state: result.state, effects: result.effects ?? [] };
+}
+
 export function fire(
   state: TriviaState,
   ctx: GameContext,
