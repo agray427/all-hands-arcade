@@ -119,7 +119,11 @@
     {#if !isContestant}
       <p class="status">Game in progress — you're spectating this one.</p>
     {:else if eliminatedRound !== undefined}
-      <p class="status out">You're out — eliminated in round {eliminatedRound}.</p>
+      <p class="status out">
+        {view.outcomes?.[youId] === "absent" && eliminatedRound === view.round
+          ? `Connection dropped — you're out, eliminated in round ${eliminatedRound}.`
+          : `You're out — eliminated in round ${eliminatedRound}.`}
+      </p>
     {:else if view.phase === "question" && hasAnswered}
       <p class="status">Answer locked in. Waiting for the reveal…</p>
     {:else if view.phase === "reveal" && outcome}
@@ -128,9 +132,11 @@
           ? "Correct!"
           : outcome === "wrong"
             ? "Wrong answer."
-            : view.variant === "host-paced"
-              ? "No answer."
-              : "Too slow!"}
+            : outcome === "absent"
+              ? "Connection dropped — this one didn't reach you."
+              : view.variant === "host-paced"
+                ? "No answer."
+                : "Too slow!"}
       </p>
     {/if}
   </section>

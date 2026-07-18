@@ -14,11 +14,11 @@ export interface TriviaView {
   scores: Record<string, number>;
   eliminatedAt: Record<string, number>;
   correctIndex?: number;
-  outcomes?: Record<string, "correct" | "wrong" | "timeout">;
+  outcomes?: Record<string, "correct" | "wrong" | "timeout" | "absent">;
   leaderboard?: GameResults;
   you?: {
     choice: number | null;
-    outcome: "correct" | "wrong" | "timeout" | null;
+    outcome: "correct" | "wrong" | "timeout" | "absent" | null;
     score: number;
     eliminatedRound: number | null;
   } | null;

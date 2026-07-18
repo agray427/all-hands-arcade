@@ -326,6 +326,27 @@ describe("GameCoordinator", () => {
     });
   });
 
+  describe("presence", () => {
+    it("is a no-op without a session", () => {
+      games.presence(ROOM, "p1", false);
+      expect(emitted).toEqual([]);
+    });
+
+    it("reduces the presence event and rebroadcasts state", () => {
+      games.start(hostCtx(), { gameId: "trivia" }, players(2));
+      const before = emitted.length;
+      games.presence(ROOM, "p1", false);
+      expect(emitted.length).toBeGreaterThan(before);
+      expect(emitted.at(-1)!.message.type).toBe("game:state");
+
+      games.message(playerCtx("p2"), answerMsg(0));
+      vi.advanceTimersByTime(20000);
+      const reveal = stateViews("host").at(-1)! as { outcomes?: Record<string, string> };
+      expect(reveal.outcomes?.p1).toBe("absent");
+      expect(reveal.outcomes?.p2).toBeDefined();
+    });
+  });
+
   describe("dispose", () => {
     it("clears pending timers so nothing fires later", () => {
       games.start(

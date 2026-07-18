@@ -734,6 +734,89 @@ describe("arcade server integration", () => {
       expect(spectator.you).toBeNull();
     });
 
+    it("labels a disconnected player absent while a connected idler times out", async () => {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const p1 = await connect();
+      const w1 = await joinRoom(p1, room.code, "Grace");
+      const p2 = await connect();
+      const w2 = await joinRoom(p2, room.code, "Hedy");
+      const p3 = await connect();
+      const w3 = await joinRoom(p3, room.code, "Mary");
+
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          variantId: "survival",
+          config: { startTimeMs: 1500, stepMs: 0, minTimeMs: 1000, revealTimeMs: 60000 },
+        }),
+      );
+
+      const q1 = viewOf(await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1)));
+      submitAnswer(p1, correctFor(q1));
+      p2.socket.disconnect();
+      await host.waitFor(
+        (m) =>
+          m.type === "room:state" &&
+          (m.payload as RoomStatePayload).room.participants[w2.youId]?.connected === false,
+      );
+
+      const reveal = viewOf(
+        await host.waitFor(stateWith((v) => v.phase === "reveal" && v.round === 1), 5000),
+      );
+      expect(reveal.outcomes![w1.youId]).toBe("correct");
+      expect(reveal.outcomes![w2.youId]).toBe("absent");
+      expect(reveal.outcomes![w3.youId]).toBe("timeout");
+
+      const revived = await connect();
+      const msg = roomRejoin({
+        roomCode: room.code,
+        participantId: w2.youId,
+        resumeToken: w2.resumeToken,
+      });
+      revived.socket.emit("message:incoming", msg);
+      const snapshot = viewOf(
+        await revived.waitFor(stateWith((v) => v.phase === "reveal" && v.round === 1)),
+      );
+      expect(snapshot.you!.outcome).toBe("absent");
+      expect(snapshot.you!.eliminatedRound).toBe(1);
+    });
+
+    it("does not mark a player absent when a newer socket takes over", async () => {
+      const host = await connect();
+      const { room } = await createRoom(host);
+      const p1 = await connect();
+      const w1 = await joinRoom(p1, room.code, "Grace");
+
+      host.socket.emit(
+        "message:incoming",
+        gameStart({
+          gameId: "trivia",
+          config: { rounds: 1, questionTimeMs: 1500, revealTimeMs: 60000 },
+        }),
+      );
+      await p1.waitFor(stateWith((v) => v.phase === "question" && v.round === 1));
+
+      const takeover = await connect();
+      takeover.socket.emit(
+        "message:incoming",
+        roomRejoin({
+          roomCode: room.code,
+          participantId: w1.youId,
+          resumeToken: w1.resumeToken,
+        }),
+      );
+      await takeover.waitFor(stateWith((v) => v.phase === "question"));
+      p1.socket.disconnect();
+      await settle();
+
+      const reveal = viewOf(
+        await takeover.waitFor(stateWith((v) => v.phase === "reveal"), 5000),
+      );
+      expect(reveal.outcomes![w1.youId]).toBe("timeout");
+    });
+
     it("plays a custom deck over the wire and rejects a malformed one", async () => {
       const { host, p1, p2, ids } = await setupGameRoom();
 
