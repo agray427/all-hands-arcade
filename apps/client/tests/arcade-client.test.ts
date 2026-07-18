@@ -96,7 +96,7 @@ describe("ArcadeClient games", () => {
 
     stub.receive(gameStarted({ gameId: "trivia", variantId: "classic", config: {} }, "all"));
     stub.receive(gameState({ gameId: "trivia", view: questionView(1) }, "players"));
-    expect(client.game?.view.round).toBe(1);
+    expect((client.game?.view as { round: number }).round).toBe(1);
 
     client.submitAnswer(2);
     expect(client.myChoice).toBe(2);
@@ -209,6 +209,28 @@ describe("ArcadeClient games", () => {
     expect(sent.type).toBe("round:advance");
     expect(sent.gameId).toBe("trivia");
     expect(sent.payload).toEqual({});
+  });
+
+  it("passes non-trivia views through untouched without clobbering trivia choice state", () => {
+    const client = new ArcadeClient();
+    stub.receive(gameStarted({ gameId: "hive-mind", variantId: "classic", config: {} }, "all"));
+    const view = { phase: "prompt", round: 1, prompt: "Pick a color", you: { answer: null } };
+    stub.receive(gameState({ gameId: "hive-mind", view }, "players"));
+    expect(client.game).toEqual({ gameId: "hive-mind", view });
+    expect(client.myChoice).toBeNull();
+  });
+
+  it("sendGameMessage targets the active game and stays silent without one", () => {
+    const client = new ArcadeClient();
+    client.sendGameMessage("hive:answer", { text: "blue" });
+    expect(stub.emitted).toHaveLength(0);
+
+    stub.receive(gameState({ gameId: "hive-mind", view: { phase: "prompt" } }, "players"));
+    client.sendGameMessage("hive:answer", { text: "blue" });
+    const sent = stub.lastSent();
+    expect(sent.type).toBe("hive:answer");
+    expect(sent.gameId).toBe("hive-mind");
+    expect(sent.payload).toEqual({ text: "blue" });
   });
 
   it("surfaces engine errors from startGame", async () => {

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { ArcadeClient } from "$lib/arcade.svelte";
-  import Countdown from "$lib/components/Countdown.svelte";
   import GamePicker from "$lib/components/GamePicker.svelte";
   import Leaderboard from "$lib/components/Leaderboard.svelte";
+  import { gameScreens } from "$lib/games/registry.js";
 
   const arcade = new ArcadeClient();
   let hostName = $state("");
@@ -12,10 +12,7 @@
     void arcade.resume();
   });
 
-  const view = $derived(arcade.game?.view ?? null);
-  const alive = $derived(
-    view ? view.contestants.filter((id) => view.eliminatedAt[id] === undefined) : [],
-  );
+  const screens = $derived(arcade.game ? (gameScreens[arcade.game.gameId] ?? null) : null);
 
   $effect(() => {
     if (arcade.room && !arcade.catalog) arcade.loadCatalog();
@@ -47,7 +44,7 @@
     <button type="submit" disabled={!hostName.trim()}>Create session</button>
   </form>
 {:else}
-  <section class="code" class:compact={!!view || !!arcade.results}>
+  <section class="code" class:compact={!!arcade.game || !!arcade.results}>
     <span class="label">Room code</span>
     <span class="value">{arcade.room.code}</span>
   </section>
@@ -58,53 +55,14 @@
       <Leaderboard results={arcade.results} />
       <button class="primary" onclick={() => arcade.dismissResults()}>Play again</button>
     </section>
-  {:else if view}
-    <section class="game">
-      <div class="meta">
-        <span class="badge">{view.variant}</span>
-        <span>Round {view.round} / {view.totalRounds}</span>
-        <span class="answered">
-          {view.answered.length} / {alive.length} answered
-        </span>
-      </div>
-
-      {#if view.phase === "question" && view.variant !== "host-paced"}
-        <Countdown deadline={view.deadline} timeMs={view.timeMs} />
-      {/if}
-
-      <p class="prompt">{view.question.prompt}</p>
-
-      <div class="choices">
-        {#each view.question.choices as choice, i (i)}
-          <div
-            class="choice"
-            class:correct={view.phase !== "question" && i === view.correctIndex}
-            class:dim={view.phase !== "question" && i !== view.correctIndex}
-          >
-            <span class="letter">{String.fromCharCode(65 + i)}</span>
-            {choice}
-          </div>
-        {/each}
-      </div>
-
-      {#if view.variant === "survival"}
-        <p class="survivors">{alive.length} of {view.contestants.length} still standing</p>
-      {/if}
-
-      {#if view.variant === "host-paced"}
-        {#if view.phase === "question"}
-          <button class="primary" onclick={() => arcade.advanceRound()}>
-            Reveal answers
-          </button>
-        {:else if view.phase === "reveal"}
-          <button class="primary" onclick={() => arcade.advanceRound()}>
-            {view.round < view.totalRounds ? "Next round" : "Show results"}
-          </button>
-        {/if}
-      {/if}
-
-      <button class="ghost" onclick={() => arcade.endGame()}>End game</button>
-    </section>
+  {:else if arcade.game}
+    {#if screens}
+      {@const HostScreen = screens.host}
+      <HostScreen {arcade} />
+    {:else}
+      <p class="status">A game is running, but this client has no host screen for it yet.</p>
+    {/if}
+    <button class="ghost" onclick={() => arcade.endGame()}>End game</button>
   {:else}
     {#if arcade.catalog}
       <GamePicker
@@ -198,57 +156,7 @@
   .code.compact .value {
     font-size: 1.4rem;
   }
-  .game {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .meta {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    color: #9aa1b1;
-  }
-  .answered {
-    margin-left: auto;
-  }
-  .prompt {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0.5rem 0;
-  }
-  .choices {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
-  @media (max-width: 540px) {
-    .choices {
-      grid-template-columns: 1fr;
-    }
-  }
-  .choice {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
-    border-radius: 10px;
-    background: #171a23;
-    border: 1px solid #262a36;
-    font-size: 1.15rem;
-  }
-  .choice.correct {
-    border-color: #22c55e;
-    background: #10241a;
-  }
-  .choice.dim {
-    opacity: 0.55;
-  }
-  .letter {
-    font-weight: 800;
-    color: #9aa1b1;
-  }
-  .survivors {
+  .status {
     color: #9aa1b1;
     margin: 0;
   }

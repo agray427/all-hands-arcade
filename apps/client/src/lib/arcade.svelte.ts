@@ -57,7 +57,7 @@ function clearSession(): void {
 
 export interface ActiveGame {
   gameId: string;
-  view: TriviaView;
+  view: unknown;
 }
 
 export class ArcadeClient {
@@ -94,15 +94,15 @@ export class ArcadeClient {
       this.myChoice = null;
     });
     this.socket.on("game:state", (payload) => {
-      const view = payload.view as TriviaView;
-      if (
-        view.phase === "question" &&
-        (!this.game || this.game.view.round !== view.round)
-      ) {
-        this.myChoice = null;
+      if (payload.gameId === "trivia") {
+        const view = payload.view as TriviaView;
+        const previous = this.game?.view as TriviaView | undefined;
+        if (view.phase === "question" && (!previous || previous.round !== view.round)) {
+          this.myChoice = null;
+        }
+        if (view.you && view.you.choice !== null) this.myChoice = view.you.choice;
       }
-      if (view.you && view.you.choice !== null) this.myChoice = view.you.choice;
-      this.game = { gameId: payload.gameId, view };
+      this.game = { gameId: payload.gameId, view: payload.view };
     });
     this.socket.on("room:closed", (payload) => {
       clearSession();
@@ -209,6 +209,11 @@ export class ArcadeClient {
     if (!this.game || this.myChoice !== null) return;
     this.myChoice = choice;
     this.socket.send(envelope("answer:submit", { choice }, { gameId: this.game.gameId }));
+  }
+
+  sendGameMessage(type: string, payload: Record<string, unknown> = {}): void {
+    if (!this.game) return;
+    this.socket.send(envelope(type, payload, { gameId: this.game.gameId }));
   }
 
   dismissResults(): void {

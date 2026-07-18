@@ -166,7 +166,12 @@
         class:active={entry.id === selectedGameId}
         onclick={() => pickGame(entry)}
       >
-        <span class="title">{entry.name}</span>
+        <span class="title">
+          {entry.name}
+          {#if entry.stability}
+            <span class="stability">{entry.stability}</span>
+          {/if}
+        </span>
         <span class="hint">{entry.description}</span>
       </button>
     {/each}
@@ -186,6 +191,13 @@
         </button>
       {/each}
     </div>
+  {/if}
+
+  {#if game?.stability}
+    <p class="stability-note">
+      This game is an <strong>{game.stability}</strong> build — expect rough edges and the
+      occasional bug.
+    </p>
   {/if}
 
   {#if variant}
@@ -305,6 +317,27 @@
   }
   .card:hover {
     border-color: #3b82f6;
+  }
+  .stability {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #fbbf24;
+    border: 1px solid #4d4320;
+    background: #221e0e;
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  .stability-note {
+    color: #fbbf24;
+    border: 1px solid #4d4320;
+    background: #221e0e;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    font-size: 0.9rem;
   }
   .card.active {
     border-color: #3b82f6;
