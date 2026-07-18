@@ -60,6 +60,7 @@ export function toCatalog(definitions: AnyGameDefinition[]): GameCatalog {
     name: d.name,
     description: d.description,
     minPlayers: d.minPlayers,
+    ...(d.stability ? { stability: d.stability } : {}),
     defaultVariant: d.defaultVariant,
     variants: Object.entries(d.variants).map(([id, v]) => ({
       id,

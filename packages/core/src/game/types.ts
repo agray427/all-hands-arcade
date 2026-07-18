@@ -6,6 +6,7 @@ import type { PayloadFields } from "../protocol/fields.js";
 export type GameConfig = Record<string, unknown>;
 export type GameView = unknown;
 export type GameAudience = "host" | "player";
+export type GameStability = "alpha" | "beta";
 
 export interface ConfigFieldOption {
   value: string;
@@ -64,6 +65,7 @@ export interface GameDefinition<S = unknown> {
   name: string;
   description: string;
   minPlayers: number;
+  stability?: GameStability;
   variants: Record<string, VariantDefinition>;
   defaultVariant: string;
   messages: Record<string, PayloadFields>;
@@ -99,6 +101,7 @@ export interface GameCatalogEntry {
   name: string;
   description: string;
   minPlayers: number;
+  stability?: GameStability;
   defaultVariant: string;
   variants: GameCatalogVariant[];
 }
