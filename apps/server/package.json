@@ -15,6 +15,11 @@
   },
   "dependencies": {
     "@arcade/core": "*",
+    "@arcade/grand-jury": "*",
+    "@arcade/hive-mind": "*",
+    "@arcade/merger": "*",
+    "@arcade/split-or-steal": "*",
+    "@arcade/telephone": "*",
     "@arcade/trivia": "*",
     "socket.io": "^4.8.1"
   },

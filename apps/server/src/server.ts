@@ -10,6 +10,11 @@ import {
   type TargetAudience,
 } from "@arcade/core";
 import { trivia } from "@arcade/trivia";
+import { hiveMind } from "@arcade/hive-mind";
+import { grandJury } from "@arcade/grand-jury";
+import { telephone } from "@arcade/telephone";
+import { splitOrSteal } from "@arcade/split-or-steal";
+import { merger } from "@arcade/merger";
 import { GameCoordinator } from "./games.js";
 import { RoomJanitor } from "./lifecycle.js";
 import { RoomStore } from "./rooms.js";
@@ -57,7 +62,14 @@ export interface ArcadeServer {
   close(): Promise<void>;
 }
 
-export const defaultGames: AnyGameDefinition[] = [trivia];
+export const defaultGames: AnyGameDefinition[] = [
+  trivia,
+  hiveMind,
+  grandJury,
+  telephone,
+  splitOrSteal,
+  merger,
+];
 
 function roleRoom(code: string, role: Role): string {
   return `${code}:${role}s`;

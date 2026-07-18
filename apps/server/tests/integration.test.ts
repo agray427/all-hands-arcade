@@ -479,13 +479,22 @@ describe("arcade server integration", () => {
       const reply = await host.waitFor((m) => m.replyTo === msg.messageId);
       expect(reply.type).toBe("game:catalog");
       const games = (reply.payload as { games: GameCatalog }).games;
-      expect(games).toHaveLength(1);
+      expect(games).toHaveLength(6);
       expect(games[0]!.id).toBe("trivia");
       expect(games[0]!.defaultVariant).toBe("classic");
+      expect(games[0]!.stability).toBeUndefined();
       expect(games[0]!.variants.map((v) => v.id).sort()).toEqual([
         "classic",
         "host-paced",
         "survival",
+      ]);
+      const alphas = games.filter((g) => g.stability === "alpha").map((g) => g.id);
+      expect(alphas.sort()).toEqual([
+        "grand-jury",
+        "hive-mind",
+        "merger",
+        "split-or-steal",
+        "telephone",
       ]);
     });
 
