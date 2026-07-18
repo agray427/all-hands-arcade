@@ -10,18 +10,24 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@arcade/core": "*",
-    "@arcade/hivemind": "*",
-    "@arcade/outlier": "*",
+    "@arcade/grand-jury": "*",
+    "@arcade/hive-mind": "*",
+    "@arcade/merger": "*",
+    "@arcade/split-or-steal": "*",
+    "@arcade/telephone": "*",
     "@arcade/trivia": "*",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "socket.io-client": "^4.8.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }

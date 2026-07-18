@@ -12,8 +12,10 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "gen": "turbo run gen",
     "build": "turbo run build",
     "check": "turbo run check",
+    "test": "turbo run test",
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules"
   },
