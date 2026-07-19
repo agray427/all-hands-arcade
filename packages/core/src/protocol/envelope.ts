@@ -6,8 +6,14 @@ export type TargetAudience = "host" | "players" | "all" | (string & {});
 
 export type EngineErrorCode =
   | "ROOM_NOT_FOUND"
+  | "REJOIN_FAILED"
   | "MALFORMED_MESSAGE"
   | "NO_SUCH_GAME"
+  | "NO_SUCH_VARIANT"
+  | "NO_ACTIVE_GAME"
+  | "GAME_ALREADY_ACTIVE"
+  | "INVALID_CONFIG"
+  | "NOT_ALLOWED"
   | "INTERNAL";
 
 export interface BaseMessage<T = unknown> {

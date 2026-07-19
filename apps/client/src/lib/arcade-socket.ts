@@ -34,6 +34,21 @@ export class ArcadeSocket {
     if (set) for (const handler of set) handler(message.payload, message);
   }
 
+  get isConnected(): boolean {
+    return this.socket.connected === true;
+  }
+
+  onStatus(handler: (connected: boolean) => void): () => void {
+    const up = () => handler(true);
+    const down = () => handler(false);
+    this.socket.on("connect", up);
+    this.socket.on("disconnect", down);
+    return () => {
+      this.socket.off("connect", up);
+      this.socket.off("disconnect", down);
+    };
+  }
+
   send(message: BaseMessage): void {
     this.socket.emit("message:incoming", message);
   }
