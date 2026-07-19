@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { Role } from "../protocol/envelope.js";
 
 export const ParticipantId = z.string();
+
+export const Role = z.enum(["host", "player", "admin"]);
 
 export const Participant = z.object({
   id: ParticipantId,
@@ -11,4 +12,5 @@ export const Participant = z.object({
 });
 
 export type ParticipantId = z.infer<typeof ParticipantId>;
+export type Role = z.infer<typeof Role>;
 export type Participant = z.infer<typeof Participant>;

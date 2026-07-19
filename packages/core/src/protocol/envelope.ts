@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { generateId } from "../models/ids.js";
 
-export const Role = z.enum(["host", "player", "admin"]);
-export type Role = z.infer<typeof Role>;
-
 export type TargetAudience = "host" | "players" | "all" | (string & {});
 
 export const EngineErrorCode = z.enum([
