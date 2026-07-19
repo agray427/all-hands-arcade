@@ -2,11 +2,8 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "tasks": {
-    "gen": {
-      "outputs": ["src/protocol/generated.ts"]
-    },
     "build": {
-      "dependsOn": ["gen", "^build"],
+      "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", ".svelte-kit/**"]
     },
     "dev": {
@@ -14,10 +11,10 @@
       "persistent": true
     },
     "check": {
-      "dependsOn": ["gen", "^build"]
+      "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["gen", "^build"]
+      "dependsOn": ["^build"]
     },
     "lint": {},
     "clean": {

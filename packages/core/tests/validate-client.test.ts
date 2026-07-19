@@ -39,20 +39,24 @@ describe("validateClient", () => {
   });
 
   it("rejects wrong payload field types", () => {
-    const create = { ...roomCreate({ hostName: "Ada" }), payload: { hostName: 5 } };
-    expect(validateClient(create)).toEqual({
-      ok: false,
-      error: "room:create.hostName must be string",
+    const create = validateClient({
+      ...roomCreate({ hostName: "Ada" }),
+      payload: { hostName: 5 },
     });
+    expect(create.ok).toBe(false);
+    if (!create.ok) expect(create.error).toContain("room:create.hostName");
 
     const join = roomJoin({ roomCode: "ABCD", name: "Grace" });
-    expect(validateClient({ ...join, payload: { roomCode: "ABCD" } })).toEqual({
-      ok: false,
-      error: "room:join.name must be string",
+    const missingName = validateClient({ ...join, payload: { roomCode: "ABCD" } });
+    expect(missingName.ok).toBe(false);
+    if (!missingName.ok) expect(missingName.error).toContain("room:join.name");
+
+    const badHost = validateClient({
+      ...join,
+      payload: { roomCode: "ABCD", name: "G", asHost: "yes" },
     });
-    expect(
-      validateClient({ ...join, payload: { roomCode: "ABCD", name: "G", asHost: "yes" } }),
-    ).toEqual({ ok: false, error: "room:join.asHost must be boolean" });
+    expect(badHost.ok).toBe(false);
+    if (!badHost.ok) expect(badHost.error).toContain("room:join.asHost");
   });
 
   it("treats optional fields as optional", () => {

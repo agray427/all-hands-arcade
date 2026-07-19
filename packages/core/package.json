@@ -11,10 +11,12 @@
     }
   },
   "scripts": {
-    "gen": "tsx scripts/gen-protocol.ts",
     "check": "tsc --noEmit",
     "build": "tsc",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.2",

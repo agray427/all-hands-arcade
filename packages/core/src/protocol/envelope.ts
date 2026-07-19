@@ -1,20 +1,24 @@
+import { z } from "zod";
 import { generateId } from "../models/ids.js";
 
-export type Role = "host" | "player" | "admin";
+export const Role = z.enum(["host", "player", "admin"]);
+export type Role = z.infer<typeof Role>;
 
 export type TargetAudience = "host" | "players" | "all" | (string & {});
 
-export type EngineErrorCode =
-  | "ROOM_NOT_FOUND"
-  | "REJOIN_FAILED"
-  | "MALFORMED_MESSAGE"
-  | "NO_SUCH_GAME"
-  | "NO_SUCH_VARIANT"
-  | "NO_ACTIVE_GAME"
-  | "GAME_ALREADY_ACTIVE"
-  | "INVALID_CONFIG"
-  | "NOT_ALLOWED"
-  | "INTERNAL";
+export const EngineErrorCode = z.enum([
+  "ROOM_NOT_FOUND",
+  "REJOIN_FAILED",
+  "MALFORMED_MESSAGE",
+  "NO_SUCH_GAME",
+  "NO_SUCH_VARIANT",
+  "NO_ACTIVE_GAME",
+  "GAME_ALREADY_ACTIVE",
+  "INVALID_CONFIG",
+  "NOT_ALLOWED",
+  "INTERNAL",
+]);
+export type EngineErrorCode = z.infer<typeof EngineErrorCode>;
 
 export interface BaseMessage<T = unknown> {
   messageId: string;

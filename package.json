@@ -11,7 +11,6 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
-    "gen": "turbo run gen",
     "build": "turbo run build",
     "check": "turbo run check",
     "test": "turbo run test",

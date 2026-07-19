@@ -1,14 +1,18 @@
-import type { ParticipantId, RoomCode } from "./primitives.js";
-import type { Participant } from "./participant.js";
+import { z } from "zod";
+import { ParticipantId, RoomCode } from "./primitives.js";
+import { Participant } from "./participant.js";
 
-export interface Room {
-  code: RoomCode;
-  participants: Record<ParticipantId, Participant>;
-  createdAt: number;
-}
+export const Room = z.object({
+  code: RoomCode,
+  participants: z.record(ParticipantId, Participant),
+  createdAt: z.number(),
+});
 
-export interface RoomView {
-  code: RoomCode;
-  participants: Record<ParticipantId, Participant>;
-  createdAt: number;
-}
+export const RoomView = z.object({
+  code: RoomCode,
+  participants: z.record(ParticipantId, Participant),
+  createdAt: z.number(),
+});
+
+export type Room = z.infer<typeof Room>;
+export type RoomView = z.infer<typeof RoomView>;

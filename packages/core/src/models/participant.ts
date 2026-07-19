@@ -1,9 +1,12 @@
-import type { ParticipantId } from "./primitives.js";
-import type { Role } from "../protocol/envelope.js";
+import { z } from "zod";
+import { ParticipantId } from "./primitives.js";
+import { Role } from "../protocol/envelope.js";
 
-export interface Participant {
-  id: ParticipantId;
-  name: string;
-  role: Role;
-  connected: boolean;
-}
+export const Participant = z.object({
+  id: ParticipantId,
+  name: z.string(),
+  role: Role,
+  connected: z.boolean(),
+});
+
+export type Participant = z.infer<typeof Participant>;
