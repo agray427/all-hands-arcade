@@ -1,20 +1,22 @@
 import { z } from "zod";
 import { ParticipantId, Participant } from "./participant.js";
 
-export const RoomCode = z.string();
+const Code = z.string();
 
 export const Room = z.object({
-  code: RoomCode,
+  code: Code,
   participants: z.record(ParticipantId, Participant),
   createdAt: z.number(),
 });
 
 export const RoomView = z.object({
-  code: RoomCode,
+  code: Code,
   participants: z.record(ParticipantId, Participant),
   createdAt: z.number(),
 });
 
-export type RoomCode = z.infer<typeof RoomCode>;
+export { Code as RoomCode };
+
+export type RoomCode = z.infer<typeof Code>;
 export type Room = z.infer<typeof Room>;
 export type RoomView = z.infer<typeof RoomView>;
