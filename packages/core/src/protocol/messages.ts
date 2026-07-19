@@ -6,7 +6,7 @@ import {
   type ServerBroadcastEnvelope,
   type TargetAudience,
 } from "./envelope.js";
-import { Participant } from "../models/participant.js";
+import type { Participant } from "../models/participant.js";
 import { RoomView } from "./dto.js";
 
 export const RoomCreatePayload = z.object({ hostName: z.string() });
@@ -28,7 +28,7 @@ export type RoomWelcomePayload = z.infer<typeof RoomWelcomePayload>;
 export const RoomStatePayload = z.object({ room: RoomView });
 export type RoomStatePayload = z.infer<typeof RoomStatePayload>;
 
-export const RoomPlayerJoinedPayload = z.object({ player: Participant });
+export const RoomPlayerJoinedPayload = z.object({ player: z.custom<Participant>() });
 export type RoomPlayerJoinedPayload = z.infer<typeof RoomPlayerJoinedPayload>;
 
 export const EngineErrorPayload = z.object({ code: EngineErrorCode, message: z.string() });
