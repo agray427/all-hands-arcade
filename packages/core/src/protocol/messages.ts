@@ -6,7 +6,8 @@ import {
   type ServerBroadcastEnvelope,
   type TargetAudience,
 } from "./envelope.js";
-import { Participant, RoomView } from "../models/index.js";
+import { Participant } from "../models/participant.js";
+import { RoomView } from "./dto.js";
 
 export const RoomCreatePayload = z.object({ hostName: z.string() });
 export type RoomCreatePayload = z.infer<typeof RoomCreatePayload>;
