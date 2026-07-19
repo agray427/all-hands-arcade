@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { ParticipantId, RoomCode } from "./primitives.js";
-import { Participant } from "./participant.js";
+import { ParticipantId, Participant } from "./participant.js";
+
+export const RoomCode = z.string();
 
 export const Room = z.object({
   code: RoomCode,
@@ -14,5 +15,6 @@ export const RoomView = z.object({
   createdAt: z.number(),
 });
 
+export type RoomCode = z.infer<typeof RoomCode>;
 export type Room = z.infer<typeof Room>;
 export type RoomView = z.infer<typeof RoomView>;
