@@ -55,11 +55,11 @@ export function handle(
 ): HandleResult {
   if (!isEnvelopeShape(raw)) return fail("MALFORMED_MESSAGE", "invalid envelope");
   if (raw.gameId) {
-    return fail("NO_SUCH_GAME", `no game registered: ${raw.gameId}`, raw.messageId);
+    return fail("NO_SUCH_GAME", `no game registered: ${raw.gameId}`, raw.id);
   }
 
   const parsed = validateClient(raw);
-  if (!parsed.ok) return fail("MALFORMED_MESSAGE", parsed.error, raw.messageId);
+  if (!parsed.ok) return fail("MALFORMED_MESSAGE", parsed.error, raw.id);
   const msg = parsed.msg;
 
   switch (msg.type) {
@@ -70,7 +70,7 @@ export function handle(
         outbound: [
           {
             target: "self",
-            message: roomWelcome({ room: view, youId: host.id }, "self", msg.messageId),
+            message: roomWelcome({ room: view, youId: host.id }, "self", msg.id),
           },
           { target: "all", message: roomState({ room: view }, "all") },
         ],
@@ -83,7 +83,7 @@ export function handle(
         msg.payload.asHost ?? false,
       );
       if (!result) {
-        return fail("ROOM_NOT_FOUND", `no room: ${msg.payload.roomId}`, msg.messageId);
+        return fail("ROOM_NOT_FOUND", `no room: ${msg.payload.roomId}`, msg.id);
       }
       const { view, participant } = result;
       return {
@@ -98,7 +98,7 @@ export function handle(
             message: roomWelcome(
               { room: view, youId: participant.id },
               "self",
-              msg.messageId,
+              msg.id,
             ),
           },
           { target: "all", message: roomState({ room: view }, "all") },

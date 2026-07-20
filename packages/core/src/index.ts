@@ -1,4 +1,4 @@
-export { envelope, isEnvelopeShape } from "./protocol/envelope.js";
+export { envelope, broadcast } from "./protocol/envelope.js";
 export {
   roomCreate,
   roomJoin,
@@ -8,10 +8,12 @@ export {
   roomPlayerJoined,
   engineError,
   validateClient,
+  isEnvelopeShape,
 } from "./protocol/messages.js";
 
 export type { Id as ParticipantId, Role, Participant } from "./models/participant.js";
 export type { Id as RoomId, Room } from "./models/room.js";
+export type { Id as GameId } from "./models/game.js";
 export type { RoomView } from "./protocol/dto.js";
 export type {
   TargetAudience,

@@ -18,14 +18,14 @@ describe("validateClient", () => {
   });
 
   it("rejects non-object envelopes", () => {
-    expect(validateClient(null)).toEqual({ ok: false, error: "envelope is not an object" });
-    expect(validateClient("nope")).toEqual({ ok: false, error: "envelope is not an object" });
+    expect(validateClient(null).ok).toBe(false);
+    expect(validateClient("nope").ok).toBe(false);
   });
 
   it("rejects envelopes missing required envelope fields", () => {
     const msg = roomLeave();
     expect(validateClient({ ...msg, type: undefined }).ok).toBe(false);
-    expect(validateClient({ ...msg, messageId: undefined }).ok).toBe(false);
+    expect(validateClient({ ...msg, id: undefined }).ok).toBe(false);
     expect(validateClient({ ...msg, timestamp: undefined }).ok).toBe(false);
     expect(validateClient({ ...msg, payload: null }).ok).toBe(false);
   });

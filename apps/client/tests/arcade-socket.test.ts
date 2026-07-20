@@ -52,7 +52,7 @@ describe("ArcadeSocket", () => {
     const msg = envelope("room:create", { hostName: "Ada" });
     const pending = socket.request(msg);
 
-    const reply = roomWelcome({ room, youId: "p_1" }, "self", msg.messageId);
+    const reply = roomWelcome({ room, youId: "p_1" }, "self", msg.id);
     stub.receive(reply);
 
     await expect(pending).resolves.toBe(reply);
@@ -66,7 +66,7 @@ describe("ArcadeSocket", () => {
     const reply = engineError(
       { code: "ROOM_NOT_FOUND", message: "no room: ZZZZ" },
       "self",
-      msg.messageId,
+      msg.id,
     );
     stub.receive(reply);
 
@@ -93,7 +93,7 @@ describe("ArcadeSocket", () => {
     await assertion;
 
     expect(() =>
-      stub.receive(roomWelcome({ room, youId: "p_1" }, "self", msg.messageId)),
+      stub.receive(roomWelcome({ room, youId: "p_1" }, "self", msg.id)),
     ).not.toThrow();
   });
 

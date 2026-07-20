@@ -82,7 +82,7 @@ describe("arcade server integration", () => {
   async function createRoom(host: Inbox, hostName = "Ada"): Promise<RoomWelcomePayload> {
     const msg = roomCreate({ hostName });
     host.socket.emit("message:incoming", msg);
-    const welcome = await host.waitFor((m) => m.replyTo === msg.messageId);
+    const welcome = await host.waitFor((m) => m.replyTo === msg.id);
     expect(welcome.type).toBe("room:welcome");
     return welcome.payload as RoomWelcomePayload;
   }
@@ -94,7 +94,7 @@ describe("arcade server integration", () => {
   ): Promise<RoomWelcomePayload> {
     const msg = roomJoin({ roomId, name });
     inbox.socket.emit("message:incoming", msg);
-    const welcome = await inbox.waitFor((m) => m.replyTo === msg.messageId);
+    const welcome = await inbox.waitFor((m) => m.replyTo === msg.id);
     expect(welcome.type).toBe("room:welcome");
     return welcome.payload as RoomWelcomePayload;
   }
@@ -105,7 +105,7 @@ describe("arcade server integration", () => {
     host.socket.emit("message:incoming", msg);
 
     const welcome = await host.waitFor((m) => m.type === "room:welcome");
-    expect(welcome.replyTo).toBe(msg.messageId);
+    expect(welcome.replyTo).toBe(msg.id);
 
     const payload = welcome.payload as RoomWelcomePayload;
     expect(payload.room.id).toMatch(/^[A-Z2-9]{4}$/);
@@ -186,7 +186,7 @@ describe("arcade server integration", () => {
     player.socket.emit("message:incoming", msg);
 
     const error = await player.waitFor((m) => m.type === "engine:error");
-    expect(error.replyTo).toBe(msg.messageId);
+    expect(error.replyTo).toBe(msg.id);
     const payload = error.payload as EngineErrorPayload;
     expect(payload.code).toBe("ROOM_NOT_FOUND");
   });

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { envelope, isEnvelopeShape } from "../src/index.js";
+import { broadcast, envelope, isEnvelopeShape } from "../src/index.js";
 
 describe("envelope", () => {
-  it("populates messageId, type, payload, and timestamp", () => {
+  it("populates id, type, payload, and timestamp", () => {
     const before = Date.now();
     const msg = envelope("room:create", { hostName: "Ada" });
-    expect(msg.messageId).toMatch(/^m_/);
+    expect(msg.id).toMatch(/^m_/);
     expect(msg.type).toBe("room:create");
     expect(msg.payload).toEqual({ hostName: "Ada" });
     expect(msg.timestamp).toBeGreaterThanOrEqual(before);
@@ -13,10 +13,10 @@ describe("envelope", () => {
     expect(msg.gameId).toBeUndefined();
   });
 
-  it("generates a unique messageId per call", () => {
+  it("generates a unique id per call", () => {
     const a = envelope("room:leave", {});
     const b = envelope("room:leave", {});
-    expect(a.messageId).not.toBe(b.messageId);
+    expect(a.id).not.toBe(b.id);
   });
 
   it("includes gameId only when provided", () => {
@@ -27,9 +27,24 @@ describe("envelope", () => {
   });
 });
 
+describe("broadcast", () => {
+  it("wraps a message with target and optional replyTo", () => {
+    const msg = broadcast("room:state", { room: 1 }, "all", "m_1");
+    expect(msg.type).toBe("room:state");
+    expect(msg.target).toBe("all");
+    expect(msg.replyTo).toBe("m_1");
+    expect(msg.id).toMatch(/^m_/);
+  });
+
+  it("omits replyTo when not provided", () => {
+    const msg = broadcast("room:state", { room: 1 }, "all");
+    expect("replyTo" in msg).toBe(false);
+  });
+});
+
 describe("isEnvelopeShape", () => {
   const valid = {
-    messageId: "m_1",
+    id: "m_1",
     type: "room:leave",
     payload: {},
     timestamp: 123,
@@ -51,10 +66,10 @@ describe("isEnvelopeShape", () => {
   });
 
   it("rejects envelopes with missing or mistyped fields", () => {
-    expect(isEnvelopeShape({ ...valid, messageId: undefined })).toBe(false);
+    expect(isEnvelopeShape({ ...valid, id: undefined })).toBe(false);
     expect(isEnvelopeShape({ ...valid, type: 7 })).toBe(false);
     expect(isEnvelopeShape({ ...valid, timestamp: "now" })).toBe(false);
-    expect(isEnvelopeShape({ messageId: "m_1", type: "x", timestamp: 1 })).toBe(false);
+    expect(isEnvelopeShape({ id: "m_1", type: "x", timestamp: 1 })).toBe(false);
     expect(isEnvelopeShape({ ...valid, gameId: 5 })).toBe(false);
   });
 });

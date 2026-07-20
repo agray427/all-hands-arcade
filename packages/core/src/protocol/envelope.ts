@@ -1,4 +1,5 @@
 import { generateId } from "@arcade/util";
+import type { Id as GameId } from "../models/game.js";
 
 export type TargetAudience = "host" | "players" | "all" | (string & {});
 
@@ -15,9 +16,9 @@ export type EngineErrorCode =
   | "INTERNAL";
 
 export type BaseMessage<T = unknown> = {
-  messageId: string;
+  id: string;
   type: string;
-  gameId?: string;
+  gameId?: GameId;
   payload: T;
   timestamp: number;
 };
@@ -28,7 +29,7 @@ export type ServerBroadcastEnvelope<T = unknown> = BaseMessage<T> & {
 };
 
 export type EnvelopeOptions = {
-  gameId?: string;
+  gameId?: GameId;
 };
 
 export function envelope<T>(
@@ -37,7 +38,7 @@ export function envelope<T>(
   options: EnvelopeOptions = {},
 ): BaseMessage<T> {
   return {
-    messageId: generateId("m"),
+    id: generateId("m"),
     type,
     payload,
     timestamp: Date.now(),
@@ -45,14 +46,16 @@ export function envelope<T>(
   };
 }
 
-export function isEnvelopeShape(raw: unknown): raw is BaseMessage {
-  if (typeof raw !== "object" || raw === null) return false;
-  const e = raw as Record<string, unknown>;
-  return (
-    typeof e.messageId === "string" &&
-    typeof e.type === "string" &&
-    typeof e.timestamp === "number" &&
-    "payload" in e &&
-    (e.gameId === undefined || typeof e.gameId === "string")
-  );
+export function broadcast<T>(
+  type: string,
+  payload: T,
+  target: TargetAudience,
+  replyTo?: string,
+  options: EnvelopeOptions = {},
+): ServerBroadcastEnvelope<T> {
+  return {
+    ...envelope(type, payload, options),
+    target,
+    ...(replyTo ? { replyTo } : {}),
+  };
 }

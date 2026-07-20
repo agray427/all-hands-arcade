@@ -27,7 +27,7 @@ describe("handle room:create", () => {
     const [welcome, state] = result.outbound;
     expect(welcome!.target).toBe("self");
     expect(welcome!.message.type).toBe("room:welcome");
-    expect(welcome!.message.replyTo).toBe(msg.messageId);
+    expect(welcome!.message.replyTo).toBe(msg.id);
     expect(state!.target).toBe("all");
     expect(state!.message.type).toBe("room:state");
   });
@@ -48,7 +48,7 @@ describe("handle room:join", () => {
       ["all", "room:state"],
       ["host", "room:player_joined"],
     ]);
-    expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
+    expect(result.outbound[0]!.message.replyTo).toBe(msg.id);
   });
 
   it("honors asHost", () => {
@@ -72,7 +72,7 @@ describe("handle room:join", () => {
     const out = result.outbound[0]!;
     expect(out.target).toBe("self");
     expect(errorPayload(out.message).code).toBe("ROOM_NOT_FOUND");
-    expect(out.message.replyTo).toBe(msg.messageId);
+    expect(out.message.replyTo).toBe(msg.id);
   });
 });
 
@@ -118,7 +118,7 @@ describe("handle errors", () => {
     const payload = errorPayload(result.outbound[0]!.message);
     expect(payload.code).toBe("MALFORMED_MESSAGE");
     expect(payload.message).toContain("hostName");
-    expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
+    expect(result.outbound[0]!.message.replyTo).toBe(msg.id);
   });
 
   it("rejects unknown game messages with NO_SUCH_GAME", () => {
@@ -128,7 +128,7 @@ describe("handle errors", () => {
     const payload = errorPayload(result.outbound[0]!.message);
     expect(payload.code).toBe("NO_SUCH_GAME");
     expect(payload.message).toContain("trivia");
-    expect(result.outbound[0]!.message.replyTo).toBe(msg.messageId);
+    expect(result.outbound[0]!.message.replyTo).toBe(msg.id);
   });
 
   it("rejects unknown message types", () => {

@@ -56,10 +56,10 @@ export class ArcadeSocket {
   request(message: BaseMessage, timeoutMs = 5000): Promise<ServerBroadcastEnvelope> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.pending.delete(message.messageId);
+        this.pending.delete(message.id);
         reject(new Error(`request timed out: ${message.type}`));
       }, timeoutMs);
-      this.pending.set(message.messageId, {
+      this.pending.set(message.id, {
         resolve: (m) => {
           clearTimeout(timer);
           resolve(m);
