@@ -5,7 +5,7 @@ import { RoomStore } from "../src/rooms.js";
 import { handle, type ConnectionContext } from "../src/router.js";
 
 function emptyCtx(): ConnectionContext {
-  return { participantId: null, roomCode: null, role: null };
+  return { participantId: null, roomId: null, role: null };
 }
 
 function errorPayload(message: ServerBroadcastEnvelope): EngineErrorPayload {
@@ -21,7 +21,7 @@ describe("handle room:create", () => {
 
     expect(result.identity).toBeDefined();
     expect(result.identity!.role).toBe("host");
-    expect(result.identity!.roomCode).toHaveLength(4);
+    expect(result.identity!.roomId).toHaveLength(4);
 
     expect(result.outbound).toHaveLength(2);
     const [welcome, state] = result.outbound;
@@ -37,11 +37,11 @@ describe("handle room:join", () => {
   it("returns player identity, welcome, state, and a host-only notification", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
-    const msg = roomJoin({ roomCode: view.id, name: "Grace" });
+    const msg = roomJoin({ roomId: view.id, name: "Grace" });
     const result = handle(store, emptyCtx(), msg);
 
     expect(result.identity!.role).toBe("player");
-    expect(result.identity!.roomCode).toBe(view.id);
+    expect(result.identity!.roomId).toBe(view.id);
 
     expect(result.outbound.map((o) => [o.target, o.message.type])).toEqual([
       ["self", "room:welcome"],
@@ -57,14 +57,14 @@ describe("handle room:join", () => {
     const result = handle(
       store,
       emptyCtx(),
-      roomJoin({ roomCode: view.id, name: "Grace", asHost: true }),
+      roomJoin({ roomId: view.id, name: "Grace", asHost: true }),
     );
     expect(result.identity!.role).toBe("host");
   });
 
   it("fails with ROOM_NOT_FOUND for an unknown code", () => {
     const store = new RoomStore();
-    const msg = roomJoin({ roomCode: "ZZZZ", name: "Grace" });
+    const msg = roomJoin({ roomId: "ZZZZ", name: "Grace" });
     const result = handle(store, emptyCtx(), msg);
 
     expect(result.identity).toBeUndefined();
@@ -83,7 +83,7 @@ describe("handle room:leave", () => {
     const { participant } = store.join(view.id, "Grace", false)!;
     const ctx: ConnectionContext = {
       participantId: participant.id,
-      roomCode: view.id,
+      roomId: view.id,
       role: "player",
     };
 

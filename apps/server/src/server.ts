@@ -18,7 +18,7 @@ interface InterServerEvents {
 
 interface SocketData {
   participantId: string | null;
-  roomCode: string | null;
+  roomId: string | null;
   role: Role | null;
 }
 
@@ -41,8 +41,8 @@ export interface ArcadeServer {
   close(): Promise<void>;
 }
 
-function roleRoom(code: string, role: Role): string {
-  return `${code}:${role}s`;
+function roleRoom(roomId: string, role: Role): string {
+  return `${roomId}:${role}s`;
 }
 
 export async function createArcadeServer(
@@ -56,23 +56,23 @@ export async function createArcadeServer(
 
   io.on("connection", (socket) => {
     socket.data.participantId = null;
-    socket.data.roomCode = null;
+    socket.data.roomId = null;
     socket.data.role = null;
 
     const emit = (out: Outbound) => {
-      const code = socket.data.roomCode;
+      const roomId = socket.data.roomId;
       switch (out.target) {
         case "self":
           socket.emit("message:outgoing", out.message);
           return;
         case "all":
-          if (code) io.to(code).emit("message:outgoing", out.message);
+          if (roomId) io.to(roomId).emit("message:outgoing", out.message);
           return;
         case "host":
-          if (code) io.to(`${code}:hosts`).emit("message:outgoing", out.message);
+          if (roomId) io.to(`${roomId}:hosts`).emit("message:outgoing", out.message);
           return;
         case "players":
-          if (code) io.to(`${code}:players`).emit("message:outgoing", out.message);
+          if (roomId) io.to(`${roomId}:players`).emit("message:outgoing", out.message);
           return;
         default:
           io.to(out.target).emit("message:outgoing", out.message);
@@ -83,30 +83,30 @@ export async function createArcadeServer(
       const result = handle(store, socket.data, raw);
 
       if (result.identity) {
-        const { participantId, roomCode, role } = result.identity;
+        const { participantId, roomId, role } = result.identity;
         socket.data.participantId = participantId;
-        socket.data.roomCode = roomCode;
+        socket.data.roomId = roomId;
         socket.data.role = role;
-        socket.join(roomCode);
-        socket.join(roleRoom(roomCode, role));
+        socket.join(roomId);
+        socket.join(roleRoom(roomId, role));
       }
 
       for (const out of result.outbound) emit(out);
 
-      if (result.leave && socket.data.roomCode) {
-        socket.leave(socket.data.roomCode);
-        if (socket.data.role) socket.leave(roleRoom(socket.data.roomCode, socket.data.role));
+      if (result.leave && socket.data.roomId) {
+        socket.leave(socket.data.roomId);
+        if (socket.data.role) socket.leave(roleRoom(socket.data.roomId, socket.data.role));
         socket.data.participantId = null;
-        socket.data.roomCode = null;
+        socket.data.roomId = null;
         socket.data.role = null;
       }
     });
 
     socket.on("disconnect", () => {
-      const { roomCode, participantId } = socket.data;
-      if (!roomCode || !participantId) return;
-      const view = store.setConnected(roomCode, participantId, false);
-      if (view) io.to(roomCode).emit("message:outgoing", roomState({ room: view }, "all"));
+      const { roomId, participantId } = socket.data;
+      if (!roomId || !participantId) return;
+      const view = store.setConnected(roomId, participantId, false);
+      if (view) io.to(roomId).emit("message:outgoing", roomState({ room: view }, "all"));
     });
   });
 

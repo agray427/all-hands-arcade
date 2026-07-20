@@ -89,10 +89,10 @@ describe("arcade server integration", () => {
 
   async function joinRoom(
     inbox: Inbox,
-    roomCode: string,
+    roomId: string,
     name: string,
   ): Promise<RoomWelcomePayload> {
-    const msg = roomJoin({ roomCode, name });
+    const msg = roomJoin({ roomId, name });
     inbox.socket.emit("message:incoming", msg);
     const welcome = await inbox.waitFor((m) => m.replyTo === msg.messageId);
     expect(welcome.type).toBe("room:welcome");
@@ -182,7 +182,7 @@ describe("arcade server integration", () => {
 
   it("joining an unknown room returns ROOM_NOT_FOUND", async () => {
     const player = await connect();
-    const msg = roomJoin({ roomCode: "ZZZZ", name: "Grace" });
+    const msg = roomJoin({ roomId: "ZZZZ", name: "Grace" });
     player.socket.emit("message:incoming", msg);
 
     const error = await player.waitFor((m) => m.type === "engine:error");

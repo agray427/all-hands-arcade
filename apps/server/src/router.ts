@@ -15,7 +15,7 @@ import type { RoomStore } from "./rooms.js";
 
 export interface ConnectionContext {
   participantId: string | null;
-  roomCode: string | null;
+  roomId: string | null;
   role: Role | null;
 }
 
@@ -26,7 +26,7 @@ export interface Outbound {
 
 export interface Identity {
   participantId: string;
-  roomCode: string;
+  roomId: string;
   role: Role;
 }
 
@@ -66,7 +66,7 @@ export function handle(
     case "room:create": {
       const { view, host } = store.create(msg.payload.hostName);
       return {
-        identity: { participantId: host.id, roomCode: view.id, role: "host" },
+        identity: { participantId: host.id, roomId: view.id, role: "host" },
         outbound: [
           {
             target: "self",
@@ -78,18 +78,18 @@ export function handle(
     }
     case "room:join": {
       const result = store.join(
-        msg.payload.roomCode,
+        msg.payload.roomId,
         msg.payload.name,
         msg.payload.asHost ?? false,
       );
       if (!result) {
-        return fail("ROOM_NOT_FOUND", `no room: ${msg.payload.roomCode}`, msg.messageId);
+        return fail("ROOM_NOT_FOUND", `no room: ${msg.payload.roomId}`, msg.messageId);
       }
       const { view, participant } = result;
       return {
         identity: {
           participantId: participant.id,
-          roomCode: view.id,
+          roomId: view.id,
           role: participant.role,
         },
         outbound: [
@@ -107,8 +107,8 @@ export function handle(
       };
     }
     case "room:leave": {
-      if (!ctx.roomCode || !ctx.participantId) return { outbound: [] };
-      const view = store.remove(ctx.roomCode, ctx.participantId);
+      if (!ctx.roomId || !ctx.participantId) return { outbound: [] };
+      const view = store.remove(ctx.roomId, ctx.participantId);
       return {
         leave: true,
         outbound: view

@@ -2,14 +2,14 @@
   import { ArcadeClient } from "$lib/arcade.svelte";
 
   const arcade = new ArcadeClient();
-  let roomCode = $state("");
+  let roomId = $state("");
   let name = $state("");
   let asHost = $state(false);
 
   function join() {
-    const code = roomCode.trim().toUpperCase();
+    const id = roomId.trim().toUpperCase();
     const who = name.trim();
-    if (code && who) arcade.joinRoom(code, who, asHost);
+    if (id && who) arcade.joinRoom(id, who, asHost);
   }
 </script>
 
@@ -21,13 +21,13 @@
 
 {#if !arcade.room}
   <form onsubmit={(e) => { e.preventDefault(); join(); }}>
-    <input placeholder="Room code" bind:value={roomCode} style="text-transform: uppercase" />
+    <input placeholder="Room ID" bind:value={roomId} style="text-transform: uppercase" />
     <input placeholder="Your name" bind:value={name} />
     <label class="check">
       <input type="checkbox" bind:checked={asHost} />
       Join as host
     </label>
-    <button type="submit" disabled={!roomCode.trim() || !name.trim()}>Join</button>
+    <button type="submit" disabled={!roomId.trim() || !name.trim()}>Join</button>
   </form>
 {:else}
   <p class="joined">

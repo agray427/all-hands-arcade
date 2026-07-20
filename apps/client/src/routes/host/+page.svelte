@@ -23,7 +23,7 @@
   </form>
 {:else}
   <section class="code">
-    <span class="label">Room code</span>
+    <span class="label">Room ID</span>
     <span class="value">{arcade.room.id}</span>
   </section>
 

@@ -13,7 +13,7 @@ export const RoomCreatePayload = z.object({ hostName: z.string() });
 export type RoomCreatePayload = z.infer<typeof RoomCreatePayload>;
 
 export const RoomJoinPayload = z.object({
-  roomCode: z.string(),
+  roomId: z.string(),
   name: z.string(),
   asHost: z.boolean().optional(),
 });

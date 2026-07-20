@@ -60,7 +60,7 @@ describe("ArcadeSocket", () => {
 
   it("request rejects when the reply is an engine:error", async () => {
     const socket = new ArcadeSocket();
-    const msg = envelope("room:join", { roomCode: "ZZZZ", name: "Grace" });
+    const msg = envelope("room:join", { roomId: "ZZZZ", name: "Grace" });
     const pending = socket.request(msg);
 
     const reply = engineError(

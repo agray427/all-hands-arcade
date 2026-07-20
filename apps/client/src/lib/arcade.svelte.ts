@@ -44,10 +44,10 @@ export class ArcadeClient {
     }
   }
 
-  async joinRoom(roomCode: string, name: string, asHost: boolean): Promise<void> {
+  async joinRoom(roomId: string, name: string, asHost: boolean): Promise<void> {
     this.lastError = null;
     try {
-      const res = await this.socket.request(roomJoin({ roomCode, name, asHost }));
+      const res = await this.socket.request(roomJoin({ roomId, name, asHost }));
       this.applyWelcome(res.payload as WelcomePayload);
     } catch (error) {
       this.captureError(error);

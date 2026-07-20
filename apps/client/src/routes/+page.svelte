@@ -6,11 +6,11 @@
 <div class="cards">
   <a class="card" href="/host">
     <span class="role">Host</span>
-    <span class="hint">Create a session and show the room code.</span>
+    <span class="hint">Create a session and show the room ID.</span>
   </a>
   <a class="card" href="/play">
     <span class="role">Join</span>
-    <span class="hint">Enter a room code to join a session.</span>
+    <span class="hint">Enter a room ID to join a session.</span>
   </a>
 </div>
 

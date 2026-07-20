@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { generateId, generateRoomCode } from "../src/index.js";
+import { generateId, generateRoomId } from "../src/index.js";
 
-describe("generateRoomCode", () => {
+describe("generateRoomId", () => {
   it("defaults to 4 characters", () => {
-    expect(generateRoomCode()).toHaveLength(4);
+    expect(generateRoomId()).toHaveLength(4);
   });
 
   it("respects the requested length", () => {
-    expect(generateRoomCode(6)).toHaveLength(6);
+    expect(generateRoomId(6)).toHaveLength(6);
   });
 
   it("only uses unambiguous characters", () => {
     for (let i = 0; i < 200; i++) {
-      expect(generateRoomCode()).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+      expect(generateRoomId()).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
     }
   });
 });

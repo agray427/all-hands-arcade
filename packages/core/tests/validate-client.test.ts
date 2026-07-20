@@ -4,9 +4,9 @@ import { roomCreate, roomJoin, roomLeave, validateClient } from "../src/index.js
 describe("validateClient", () => {
   it("accepts every client builder output", () => {
     expect(validateClient(roomCreate({ hostName: "Ada" })).ok).toBe(true);
-    expect(validateClient(roomJoin({ roomCode: "ABCD", name: "Grace" })).ok).toBe(true);
+    expect(validateClient(roomJoin({ roomId: "ABCD", name: "Grace" })).ok).toBe(true);
     expect(
-      validateClient(roomJoin({ roomCode: "ABCD", name: "Grace", asHost: true })).ok,
+      validateClient(roomJoin({ roomId: "ABCD", name: "Grace", asHost: true })).ok,
     ).toBe(true);
     expect(validateClient(roomLeave()).ok).toBe(true);
   });
@@ -46,21 +46,21 @@ describe("validateClient", () => {
     expect(create.ok).toBe(false);
     if (!create.ok) expect(create.error).toContain("room:create.hostName");
 
-    const join = roomJoin({ roomCode: "ABCD", name: "Grace" });
-    const missingName = validateClient({ ...join, payload: { roomCode: "ABCD" } });
+    const join = roomJoin({ roomId: "ABCD", name: "Grace" });
+    const missingName = validateClient({ ...join, payload: { roomId: "ABCD" } });
     expect(missingName.ok).toBe(false);
     if (!missingName.ok) expect(missingName.error).toContain("room:join.name");
 
     const badHost = validateClient({
       ...join,
-      payload: { roomCode: "ABCD", name: "G", asHost: "yes" },
+      payload: { roomId: "ABCD", name: "G", asHost: "yes" },
     });
     expect(badHost.ok).toBe(false);
     if (!badHost.ok) expect(badHost.error).toContain("room:join.asHost");
   });
 
   it("treats optional fields as optional", () => {
-    const join = roomJoin({ roomCode: "ABCD", name: "Grace" });
+    const join = roomJoin({ roomId: "ABCD", name: "Grace" });
     expect("asHost" in join.payload).toBe(false);
     expect(validateClient(join).ok).toBe(true);
   });
