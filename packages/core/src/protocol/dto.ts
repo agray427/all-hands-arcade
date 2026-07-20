@@ -1,10 +1,7 @@
-import { z } from "zod";
-import { Id as ParticipantId, Participant } from "../models/participant.js";
+import type { Id as ParticipantId, Participant } from "../models/participant.js";
 
-export const RoomView = z.object({
-  id: z.string(),
-  participants: z.record(ParticipantId, Participant),
-  createdAt: z.number(),
-});
-
-export type RoomView = z.infer<typeof RoomView>;
+export type RoomView = {
+  id: string;
+  participants: Record<ParticipantId, Participant>;
+  createdAt: number;
+};

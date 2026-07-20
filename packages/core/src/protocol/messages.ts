@@ -1,13 +1,13 @@
 import { z } from "zod";
-import {
-  envelope,
+import { envelope } from "./envelope.js";
+import type {
+  BaseMessage,
+  ServerBroadcastEnvelope,
+  TargetAudience,
   EngineErrorCode,
-  type BaseMessage,
-  type ServerBroadcastEnvelope,
-  type TargetAudience,
 } from "./envelope.js";
-import { Participant } from "../models/participant.js";
-import { RoomView } from "./dto.js";
+import type { Participant } from "../models/participant.js";
+import type { RoomView } from "./dto.js";
 
 export const RoomCreatePayload = z.object({ hostName: z.string() });
 export type RoomCreatePayload = z.infer<typeof RoomCreatePayload>;
@@ -22,17 +22,10 @@ export type RoomJoinPayload = z.infer<typeof RoomJoinPayload>;
 export const RoomLeavePayload = z.object({});
 export type RoomLeavePayload = z.infer<typeof RoomLeavePayload>;
 
-export const RoomWelcomePayload = z.object({ room: RoomView, youId: z.string() });
-export type RoomWelcomePayload = z.infer<typeof RoomWelcomePayload>;
-
-export const RoomStatePayload = z.object({ room: RoomView });
-export type RoomStatePayload = z.infer<typeof RoomStatePayload>;
-
-export const RoomPlayerJoinedPayload = z.object({ player: Participant });
-export type RoomPlayerJoinedPayload = z.infer<typeof RoomPlayerJoinedPayload>;
-
-export const EngineErrorPayload = z.object({ code: EngineErrorCode, message: z.string() });
-export type EngineErrorPayload = z.infer<typeof EngineErrorPayload>;
+export type RoomWelcomePayload = { room: RoomView; youId: string };
+export type RoomStatePayload = { room: RoomView };
+export type RoomPlayerJoinedPayload = { player: Participant };
+export type EngineErrorPayload = { code: EngineErrorCode; message: string };
 
 const clientSchemas = {
   "room:create": RoomCreatePayload,
@@ -40,19 +33,15 @@ const clientSchemas = {
   "room:leave": RoomLeavePayload,
 } as const;
 
-const serverSchemas = {
-  "room:welcome": RoomWelcomePayload,
-  "room:state": RoomStatePayload,
-  "room:player_joined": RoomPlayerJoinedPayload,
-  "engine:error": EngineErrorPayload,
-} as const;
-
 export type ClientMessageMap = {
   [K in keyof typeof clientSchemas]: z.infer<(typeof clientSchemas)[K]>;
 };
 
 export type ServerMessageMap = {
-  [K in keyof typeof serverSchemas]: z.infer<(typeof serverSchemas)[K]>;
+  "room:welcome": RoomWelcomePayload;
+  "room:state": RoomStatePayload;
+  "room:player_joined": RoomPlayerJoinedPayload;
+  "engine:error": EngineErrorPayload;
 };
 
 export type ClientMessage = {
