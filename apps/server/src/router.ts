@@ -1,5 +1,5 @@
+import { assertNever } from "@arcade/util";
 import {
-  assertNever,
   engineError,
   isEnvelopeShape,
   roomPlayerJoined,
@@ -66,7 +66,7 @@ export function handle(
     case "room:create": {
       const { view, host } = store.create(msg.payload.hostName);
       return {
-        identity: { participantId: host.id, roomCode: view.code, role: "host" },
+        identity: { participantId: host.id, roomCode: view.id, role: "host" },
         outbound: [
           {
             target: "self",
@@ -89,7 +89,7 @@ export function handle(
       return {
         identity: {
           participantId: participant.id,
-          roomCode: view.code,
+          roomCode: view.id,
           role: participant.role,
         },
         outbound: [

@@ -31,7 +31,7 @@
   </form>
 {:else}
   <p class="joined">
-    You joined <strong>{arcade.room.code}</strong> as
+    You joined <strong>{arcade.room.id}</strong> as
     <strong>{arcade.you?.role}</strong>.
   </p>
 

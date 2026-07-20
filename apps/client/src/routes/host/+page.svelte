@@ -24,7 +24,7 @@
 {:else}
   <section class="code">
     <span class="label">Room code</span>
-    <span class="value">{arcade.room.code}</span>
+    <span class="value">{arcade.room.id}</span>
   </section>
 
   <section>

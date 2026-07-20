@@ -28,7 +28,7 @@ vi.mock("../src/lib/socket.js", () => ({
 
 const { ArcadeSocket } = await import("../src/lib/arcade-socket.js");
 
-const room: RoomView = { code: "ABCD", participants: {}, createdAt: 1 };
+const room: RoomView = { id: "ABCD", participants: {}, createdAt: 1 };
 
 describe("ArcadeSocket", () => {
   beforeEach(() => {

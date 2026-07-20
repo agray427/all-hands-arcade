@@ -37,11 +37,11 @@ describe("handle room:join", () => {
   it("returns player identity, welcome, state, and a host-only notification", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
-    const msg = roomJoin({ roomCode: view.code, name: "Grace" });
+    const msg = roomJoin({ roomCode: view.id, name: "Grace" });
     const result = handle(store, emptyCtx(), msg);
 
     expect(result.identity!.role).toBe("player");
-    expect(result.identity!.roomCode).toBe(view.code);
+    expect(result.identity!.roomCode).toBe(view.id);
 
     expect(result.outbound.map((o) => [o.target, o.message.type])).toEqual([
       ["self", "room:welcome"],
@@ -57,7 +57,7 @@ describe("handle room:join", () => {
     const result = handle(
       store,
       emptyCtx(),
-      roomJoin({ roomCode: view.code, name: "Grace", asHost: true }),
+      roomJoin({ roomCode: view.id, name: "Grace", asHost: true }),
     );
     expect(result.identity!.role).toBe("host");
   });
@@ -80,10 +80,10 @@ describe("handle room:leave", () => {
   it("removes the participant and broadcasts the new roster", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
-    const { participant } = store.join(view.code, "Grace", false)!;
+    const { participant } = store.join(view.id, "Grace", false)!;
     const ctx: ConnectionContext = {
       participantId: participant.id,
-      roomCode: view.code,
+      roomCode: view.id,
       role: "player",
     };
 
@@ -93,7 +93,7 @@ describe("handle room:leave", () => {
     expect(result.outbound).toHaveLength(1);
     expect(result.outbound[0]!.target).toBe("all");
     expect(result.outbound[0]!.message.type).toBe("room:state");
-    expect(store.get(view.code)!.participants[participant.id]).toBeUndefined();
+    expect(store.get(view.id)!.participants[participant.id]).toBeUndefined();
   });
 
   it("is a no-op when the connection has no room", () => {

@@ -1,4 +1,4 @@
-export { envelope, isEnvelopeShape, assertNever } from "./protocol/envelope.js";
+export { envelope, isEnvelopeShape } from "./protocol/envelope.js";
 export {
   roomCreate,
   roomJoin,

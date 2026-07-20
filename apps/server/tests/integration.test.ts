@@ -108,11 +108,11 @@ describe("arcade server integration", () => {
     expect(welcome.replyTo).toBe(msg.messageId);
 
     const payload = welcome.payload as RoomWelcomePayload;
-    expect(payload.room.code).toMatch(/^[A-Z2-9]{4}$/);
+    expect(payload.room.id).toMatch(/^[A-Z2-9]{4}$/);
     expect(payload.room.participants[payload.youId]!.role).toBe("host");
 
     const state = await host.waitFor((m) => m.type === "room:state");
-    expect((state.payload as RoomStatePayload).room.code).toBe(payload.room.code);
+    expect((state.payload as RoomStatePayload).room.id).toBe(payload.room.id);
   });
 
   it("player join notifies the host and only the host", async () => {
@@ -120,7 +120,7 @@ describe("arcade server integration", () => {
     const { room } = await createRoom(host);
 
     const player = await connect();
-    const welcome = await joinRoom(player, room.code, "Grace");
+    const welcome = await joinRoom(player, room.id, "Grace");
     expect(welcome.room.participants[welcome.youId]!.role).toBe("player");
 
     const joined = await host.waitFor((m) => m.type === "room:player_joined");
@@ -147,7 +147,7 @@ describe("arcade server integration", () => {
     const host = await connect();
     const { room } = await createRoom(host);
     const player = await connect();
-    const welcome = await joinRoom(player, room.code, "Grace");
+    const welcome = await joinRoom(player, room.id, "Grace");
 
     player.socket.emit("message:incoming", roomLeave());
 
@@ -164,7 +164,7 @@ describe("arcade server integration", () => {
     const host = await connect();
     const { room } = await createRoom(host);
     const player = await connect();
-    const welcome = await joinRoom(player, room.code, "Grace");
+    const welcome = await joinRoom(player, room.id, "Grace");
 
     player.socket.disconnect();
 

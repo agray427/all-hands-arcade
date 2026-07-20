@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Id as ParticipantId, Participant } from "../models/participant.js";
 
 export const RoomView = z.object({
-  code: z.string(),
+  id: z.string(),
   participants: z.record(ParticipantId, Participant),
   createdAt: z.number(),
 });

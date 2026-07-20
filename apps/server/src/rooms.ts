@@ -7,7 +7,7 @@ function toView(room: Room): RoomView {
     participants[id] = { ...participant };
   }
   return {
-    code: room.code,
+    id: room.id,
     participants,
     createdAt: room.createdAt,
   };
@@ -27,7 +27,7 @@ export class RoomStore {
       connected: true,
     };
     const room: Room = {
-      code,
+      id: code,
       participants: { [host.id]: host },
       createdAt: Date.now(),
     };

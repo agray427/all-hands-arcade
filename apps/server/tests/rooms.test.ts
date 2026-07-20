@@ -6,7 +6,7 @@ describe("RoomStore", () => {
     const store = new RoomStore();
     const { view, host } = store.create("Ada");
 
-    expect(view.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
+    expect(view.id).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
     expect(host.name).toBe("Ada");
     expect(host.role).toBe("host");
     expect(host.connected).toBe(true);
@@ -17,7 +17,7 @@ describe("RoomStore", () => {
   it("join adds a player to an existing room", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
-    const result = store.join(view.code, "Grace", false);
+    const result = store.join(view.id, "Grace", false);
 
     expect(result).not.toBeNull();
     expect(result!.participant.role).toBe("player");
@@ -28,7 +28,7 @@ describe("RoomStore", () => {
   it("join with asHost grants the host role", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
-    const result = store.join(view.code, "Grace", true);
+    const result = store.join(view.id, "Grace", true);
     expect(result!.participant.role).toBe("host");
   });
 
@@ -40,7 +40,7 @@ describe("RoomStore", () => {
   it("get returns a view or null", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
-    expect(store.get(view.code)?.code).toBe(view.code);
+    expect(store.get(view.id)?.id).toBe(view.id);
     expect(store.get("ZZZZ")).toBeNull();
   });
 
@@ -48,10 +48,10 @@ describe("RoomStore", () => {
     const store = new RoomStore();
     const { view, host } = store.create("Ada");
 
-    const updated = store.setConnected(view.code, host.id, false);
+    const updated = store.setConnected(view.id, host.id, false);
     expect(updated!.participants[host.id]!.connected).toBe(false);
 
-    const restored = store.setConnected(view.code, host.id, true);
+    const restored = store.setConnected(view.id, host.id, true);
     expect(restored!.participants[host.id]!.connected).toBe(true);
   });
 
@@ -59,15 +59,15 @@ describe("RoomStore", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
     expect(store.setConnected("ZZZZ", "p_x", false)).toBeNull();
-    expect(store.setConnected(view.code, "p_x", false)).toBeNull();
+    expect(store.setConnected(view.id, "p_x", false)).toBeNull();
   });
 
   it("remove drops the participant from the room", () => {
     const store = new RoomStore();
     const { view } = store.create("Ada");
-    const { participant } = store.join(view.code, "Grace", false)!;
+    const { participant } = store.join(view.id, "Grace", false)!;
 
-    const updated = store.remove(view.code, participant.id);
+    const updated = store.remove(view.id, participant.id);
     expect(updated!.participants[participant.id]).toBeUndefined();
     expect(Object.keys(updated!.participants)).toHaveLength(1);
   });
@@ -80,7 +80,7 @@ describe("RoomStore", () => {
   it("views are snapshots, not live references", () => {
     const store = new RoomStore();
     const { view, host } = store.create("Ada");
-    store.setConnected(view.code, host.id, false);
+    store.setConnected(view.id, host.id, false);
     expect(view.participants[host.id]!.connected).toBe(true);
   });
 });

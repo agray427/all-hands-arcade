@@ -17,22 +17,22 @@ export const EngineErrorCode = z.enum([
 ]);
 export type EngineErrorCode = z.infer<typeof EngineErrorCode>;
 
-export interface BaseMessage<T = unknown> {
+export type BaseMessage<T = unknown> = {
   messageId: string;
   type: string;
   gameId?: string;
   payload: T;
   timestamp: number;
-}
+};
 
-export interface ServerBroadcastEnvelope<T = unknown> extends BaseMessage<T> {
+export type ServerBroadcastEnvelope<T = unknown> = BaseMessage<T> & {
   target: TargetAudience;
   replyTo?: string;
-}
+};
 
-export interface EnvelopeOptions {
+export type EnvelopeOptions = {
   gameId?: string;
-}
+};
 
 export function envelope<T>(
   type: string,
@@ -58,8 +58,4 @@ export function isEnvelopeShape(raw: unknown): raw is BaseMessage {
     "payload" in e &&
     (e.gameId === undefined || typeof e.gameId === "string")
   );
-}
-
-export function assertNever(value: never): never {
-  throw new Error(`Unhandled message variant: ${JSON.stringify(value)}`);
 }
