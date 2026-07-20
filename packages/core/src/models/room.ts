@@ -1,13 +1,15 @@
 import { z } from "zod";
-import type { ParticipantId, Participant } from "./participant.js";
+import { ParticipantId, Participant } from "./participant.js";
 
 const Id = z.string();
 
-const Room = z.object({
+export const Room = z.object({
   code: Id,
-  participants: z.record(z.custom<ParticipantId>(), z.custom<Participant>()),
+  participants: z.record(ParticipantId, Participant),
   createdAt: z.number(),
 });
+
+export { Id as RoomCode };
 
 export type RoomCode = z.infer<typeof Id>;
 export type Room = z.infer<typeof Room>;

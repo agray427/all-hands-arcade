@@ -1,9 +1,9 @@
 import { z } from "zod";
-import type { ParticipantId, Participant } from "../models/participant.js";
+import { ParticipantId, Participant } from "../models/participant.js";
 
 export const RoomView = z.object({
   code: z.string(),
-  participants: z.record(z.custom<ParticipantId>(), z.custom<Participant>()),
+  participants: z.record(ParticipantId, Participant),
   createdAt: z.number(),
 });
 

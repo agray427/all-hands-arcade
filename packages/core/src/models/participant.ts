@@ -2,14 +2,16 @@ import { z } from "zod";
 
 const Id = z.string();
 
-const Role = z.enum(["host", "player", "admin"]);
+export const Role = z.enum(["host", "player", "admin"]);
 
-const Participant = z.object({
+export const Participant = z.object({
   id: Id,
   name: z.string(),
   role: Role,
   connected: z.boolean(),
 });
+
+export { Id as ParticipantId };
 
 export type ParticipantId = z.infer<typeof Id>;
 export type Role = z.infer<typeof Role>;
