@@ -1,11 +1,5 @@
-import {
-  generateId,
-  generateRoomCode,
-  type Participant,
-  type Room,
-  type RoomCode,
-  type RoomView,
-} from "@arcade/core";
+import { generateId, generateRoomCode } from "@arcade/util";
+import type { Participant, Room, RoomCode, RoomView } from "@arcade/core";
 
 function toView(room: Room): RoomView {
   const participants: Record<string, Participant> = {};

@@ -1,4 +1,3 @@
-export { generateId, generateRoomCode } from "./models/ids.js";
 export { envelope, isEnvelopeShape, assertNever } from "./protocol/envelope.js";
 export {
   roomCreate,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { generateId } from "../models/ids.js";
+import { generateId } from "@arcade/util";
 
 export type TargetAudience = "host" | "players" | "all" | (string & {});
 

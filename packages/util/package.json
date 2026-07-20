@@ -1,7 +1,7 @@
 {
-  "name": "@arcade/core",
+  "name": "@arcade/util",
   "version": "0.1.0",
-  "description": "Isomorphic domain models, event contracts, and shared logic for All Hands Arcade.",
+  "description": "Framework-agnostic shared utilities for All Hands Arcade.",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -15,12 +15,7 @@
     "build": "tsc",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@arcade/util": "*",
-    "zod": "^4.0.0"
-  },
   "devDependencies": {
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
