@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { ParticipantId, Participant } from "./participant.js";
+import { Id as ParticipantId, Participant } from "./participant.js";
 
-const Id = z.string();
+export const Id = z.string();
 
 export const Room = z.object({
   code: Id,
@@ -9,7 +9,5 @@ export const Room = z.object({
   createdAt: z.number(),
 });
 
-export { Id as RoomCode };
-
-export type RoomCode = z.infer<typeof Id>;
+export type Id = z.infer<typeof Id>;
 export type Room = z.infer<typeof Room>;

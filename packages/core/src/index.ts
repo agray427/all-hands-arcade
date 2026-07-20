@@ -10,8 +10,8 @@ export {
   validateClient,
 } from "./protocol/messages.js";
 
-export type { ParticipantId, Role, Participant } from "./models/participant.js";
-export type { RoomCode, Room } from "./models/room.js";
+export type { Id as ParticipantId, Role, Participant } from "./models/participant.js";
+export type { Id as RoomCode, Room } from "./models/room.js";
 export type { RoomView } from "./protocol/dto.js";
 export type {
   TargetAudience,

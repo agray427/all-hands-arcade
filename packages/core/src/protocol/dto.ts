@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ParticipantId, Participant } from "../models/participant.js";
+import { Id as ParticipantId, Participant } from "../models/participant.js";
 
 export const RoomView = z.object({
   code: z.string(),
