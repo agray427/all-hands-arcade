@@ -9,10 +9,12 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "clean": "rm -rf .svelte-kit build .turbo"
   },
   "dependencies": {
     "@arcade/core": "*",
+    "@arcade/rpsls": "*",
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {

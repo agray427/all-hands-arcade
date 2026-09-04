@@ -1,7 +1,7 @@
 {
-  "name": "@arcade/core",
+  "name": "@arcade/rpsls",
   "version": "0.1.0",
-  "description": "Isomorphic domain models, event contracts, and shared logic for All Hands Arcade.",
+  "description": "Rock Paper Scissors Lizard Spock for All Hands Arcade - score a point for everyone you beat.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,7 +15,11 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs",
     "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@arcade/core": "*"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

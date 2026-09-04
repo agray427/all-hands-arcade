@@ -15,6 +15,7 @@
     "build": "turbo run build",
     "check": "turbo run check",
     "lint": "turbo run lint",
+    "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
