@@ -1,7 +1,7 @@
 {
-  "name": "@arcade/core",
+  "name": "@arcade/cipher",
   "version": "0.1.0",
-  "description": "Isomorphic domain models, event contracts, and shared logic for All Hands Arcade.",
+  "description": "Cipher - a competitive 5x5 word-guessing game for All Hands Arcade.",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -15,9 +15,14 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "check": "tsc --noEmit",
+    "words:generate": "node scripts/generate-wordlist.mjs",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
+  "dependencies": {
+    "@arcade/core": "*"
+  },
   "devDependencies": {
+    "an-array-of-english-words": "^2.0.0",
     "typescript": "^5.7.2"
   }
 }
